@@ -1,4 +1,4 @@
-yamlname: Alpha Scout Weekly QA
+name: Alpha Scout Weekly QA
 
 on:
   schedule:
