@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETF Lab — Alpha Scout</title>
+<style>
+* { font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif!important; box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --bg:#0a0d14; --bg2:#131720; --bg3:#181d28; --bg4:#1c2230; --bg5:#222837;
+  --border:rgba(255,255,255,0.06); --border2:rgba(255,255,255,0.12);
+  --text:#ffffff; --text2:#c8cdd8; --text3:#8892a4;
+  --green:#1DB87A; --green-dim:rgba(29,184,122,0.1);
+  --red:#E24B4A; --red-dim:rgba(226,75,74,0.1);
+  --amber:#EF9F27; --amber-dim:rgba(239,159,39,0.1);
+  --blue:#4A90D9; --blue-dim:rgba(74,144,217,0.1);
+  --purple:#9B72D0; --teal:#2EC4B6;
+  --radius:6px;
+}
+body { background:var(--bg); color:var(--text); font-size:13px; min-height:100vh; }
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+.navbar { display:flex; align-items:center; justify-content:space-between; padding:10px 24px; background:var(--bg2); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:100; }
+.nav-btn { padding:6px 14px; border:1px solid var(--border); border-radius:var(--radius); font-size:12px; font-weight:500; color:var(--text2); background:transparent; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
+.nav-btn:hover { background:var(--bg3); color:var(--text); }
+.nav-btn.active { background:rgba(155,114,208,.12); color:var(--purple); border-color:rgba(155,114,208,.35); }
+
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border2); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.lab-search-wrap { padding:20px 24px 0; max-width:1600px; margin:0 auto; }
+.lab-search-row { display:flex; align-items:center; gap:10px; }
+.lab-input-box { flex:1; max-width:460px; display:flex; align-items:center; gap:8px; background:var(--bg3); border:1.5px solid var(--border2); border-radius:var(--radius); padding:10px 14px; }
+.lab-input-box:focus-within { border-color:rgba(155,114,208,.5); }
+.lab-input-box input { background:none; border:none; outline:none; color:var(--text); font-size:16px; flex:1; letter-spacing:.05em; font-family:'Aptos Display',sans-serif!important; }
+.lab-input-box input::placeholder { color:var(--text3); }
+.lab-go { padding:10px 24px; background:var(--purple); color:#fff; border:none; border-radius:var(--radius); font-size:13px; font-weight:700; cursor:pointer; transition:opacity .15s; }
+.lab-go:hover { opacity:.85; }
+
+.lab-main { max-width:1600px; margin:0 auto; padding:20px 24px 60px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+.grid-full { margin-bottom:14px; }
+@media(max-width:1100px){ .grid-3{grid-template-columns:1fr 1fr;} }
+@media(max-width:760px){ .grid-2,.grid-3{grid-template-columns:1fr;} }
+
+.panel { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.panel-hdr { display:flex; align-items:center; justify-content:space-between; padding:11px 16px; border-bottom:1px solid var(--border); background:var(--bg3); }
+.panel-title { font-size:13px; font-weight:700; color:var(--text2); letter-spacing:.01em; }
+.panel-body { padding:16px; }
+
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; }
+.stat-box { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:10px 12px; }
+.stat-label { font-size:10px; color:var(--text3); margin-bottom:4px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; }
+.stat-val { font-size:16px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.stat-sub { font-size:10px; color:var(--text3); margin-top:2px; }
+
+/* Header */
+.etf-header { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-bottom:14px; }
+.etf-ticker { font-size:36px; font-weight:800; color:var(--blue); letter-spacing:.04em; line-height:1; font-family:'Aptos Display',sans-serif!important; }
+.etf-fullname { font-size:18px; font-weight:600; color:var(--text); margin-top:4px; }
+.etf-category { font-size:12px; color:var(--text3); margin-top:3px; }
+.etf-price-row { display:flex; align-items:baseline; gap:10px; margin-top:10px; }
+.etf-price { font-size:30px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+.price-change { font-size:15px; font-weight:600; padding:3px 10px; border-radius:4px; }
+.price-up { background:var(--green-dim); color:var(--green); }
+.price-dn { background:var(--red-dim); color:var(--red); }
+.price-flat { background:var(--bg3); color:var(--text3); }
+
+/* Sector bars */
+.sec-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.sec-name { width:170px; flex-shrink:0; font-size:12px; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sec-bars { flex:1; display:flex; flex-direction:column; gap:3px; }
+.sec-bar-wrap { display:flex; align-items:center; gap:6px; }
+.sec-bar-track { flex:1; height:9px; background:var(--bg4); border-radius:3px; overflow:hidden; position:relative; }
+.sec-bar-fill { height:100%; border-radius:3px; transition:width .4s ease; }
+.sec-bar-label { font-size:10px; color:var(--text3); width:30px; flex-shrink:0; }
+.sec-pct { width:42px; text-align:right; font-size:12px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+.sec-delta { width:48px; text-align:right; font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; }
+.sec-legend { display:flex; gap:14px; font-size:10px; color:var(--text3); margin-bottom:12px; flex-wrap:wrap; }
+.sec-dot { width:10px; height:9px; border-radius:2px; display:inline-block; margin-right:4px; }
+
+/* Market Cycle */
+.cycle-stage-badge { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:20px; font-size:16px; font-weight:800; }
+.cycle-early { background:rgba(29,184,122,.12); color:var(--green); border:1.5px solid rgba(29,184,122,.35); }
+.cycle-mid { background:rgba(74,144,217,.12); color:var(--blue); border:1.5px solid rgba(74,144,217,.35); }
+.cycle-late { background:rgba(239,159,39,.12); color:var(--amber); border:1.5px solid rgba(239,159,39,.35); }
+.cycle-contraction { background:rgba(226,75,74,.12); color:var(--red); border:1.5px solid rgba(226,75,74,.35); }
+.cycle-signal-row { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+.cycle-signal-row:last-child { border-bottom:none; }
+.cycle-lean-chip { font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; text-transform:uppercase; letter-spacing:.03em; flex-shrink:0; margin-top:2px; }
+.cycle-tag { display:inline-block; background:var(--bg3); border:1px solid var(--border2); border-radius:12px; padding:3px 10px; font-size:11px; color:var(--text2); margin:2px; }
+.fit-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:14px; font-size:12px; font-weight:700; }
+
+/* Sector rotation */
+.rot-table { width:100%; border-collapse:collapse; font-size:12px; }
+.rot-table th { text-align:left; color:var(--text3); font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; padding:7px 8px; border-bottom:1px solid var(--border); }
+.rot-table td { padding:7px 8px; border-bottom:1px solid var(--border); }
+.rot-table tr:last-child td { border-bottom:none; }
+.rot-cell { display:flex; align-items:center; gap:6px; }
+.rot-bar-track { width:60px; height:6px; background:var(--bg4); border-radius:3px; overflow:hidden; position:relative; }
+.rot-bar-fill { position:absolute; top:0; height:100%; border-radius:3px; }
+
+/* PE pill */
+.pe-above { background:var(--red-dim); color:var(--red); border:1px solid rgba(226,75,74,.3); }
+.pe-average { background:var(--amber-dim); color:var(--amber); border:1px solid rgba(239,159,39,.3); }
+.pe-below { background:var(--green-dim); color:var(--green); border:1px solid rgba(29,184,122,.3); }
+.pe-pill { padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; display:inline-block; }
+
+/* Upside boxes */
+.upside-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+.upside-box { background:var(--bg3); border:1px solid var(--border); border-radius:4px; padding:12px; text-align:center; }
+.upside-lbl { font-size:10px; color:var(--text3); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+.upside-val { font-size:19px; font-weight:700; font-variant-numeric:tabular-nums; }
+.upside-sub { font-size:11px; margin-top:4px; font-weight:600; }
+
+/* Holdings */
+.h-table { width:100%; border-collapse:collapse; font-size:12px; }
+.h-table th { text-align:left; color:var(--text3); font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:7px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.h-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text2); vertical-align:middle; }
+.h-table tr:last-child td { border-bottom:none; }
+.h-table tr:hover td { background:var(--bg3); }
+.h-scroll { max-height:520px; overflow-y:auto; }
+.w-bar-cell { display:flex; align-items:center; gap:8px; }
+.w-track { width:90px; height:6px; background:var(--bg4); border-radius:3px; overflow:hidden; }
+.w-fill { height:100%; border-radius:3px; background:var(--blue); }
+
+/* Momentum */
+.mom-score-big { font-size:48px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.mom-signal { font-size:12px; font-weight:700; padding:4px 12px; border-radius:12px; display:inline-block; margin-top:6px; }
+.mom-strong { background:var(--green-dim); color:var(--green); }
+.mom-neutral { background:var(--amber-dim); color:var(--amber); }
+.mom-weak { background:var(--red-dim); color:var(--red); }
+.mom-bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:11px; }
+.mom-label { width:155px; color:var(--text3); }
+.mom-track { flex:1; height:8px; background:var(--bg4); border-radius:4px; overflow:hidden; }
+.mom-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue),var(--purple)); }
+.mom-val { width:40px; text-align:right; color:var(--text2); font-weight:600; }
+
+/* Fed */
+.fed-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.fed-hdr { font-size:12px; font-weight:700; margin-bottom:8px; }
+.fed-item { font-size:11px; color:var(--text2); line-height:1.55; padding:6px 9px; border-radius:4px; background:var(--bg3); margin-bottom:5px; }
+
+/* Portfolio fit */
+.overlap-chip { display:inline-block; background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:2px 9px; font-size:11px; color:var(--text2); margin:2px; }
+
+/* Empty */
+.empty-state { text-align:center; padding:70px 20px; color:var(--text3); }
+.empty-icon { font-size:44px; margin-bottom:14px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div style="display:flex;align-items:center;gap:16px">
+    <a href="/home" style="text-decoration:none;display:flex;align-items:center;gap:8px">
+      <svg width="28" height="28" viewBox="0 0 26 26" fill="none">
+        <circle cx="13" cy="13" r="11" stroke="#8FAF8F" stroke-width="1.2" opacity="0.5"/>
+        <circle cx="13" cy="13" r="7" stroke="#8FAF8F" stroke-width="1.2" opacity="0.7"/>
+        <circle cx="13" cy="13" r="3" stroke="#8FAF8F" stroke-width="1.2"/>
+        <line x1="13" y1="2" x2="13" y2="24" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+        <line x1="2" y1="13" x2="24" y2="13" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+        <line x1="13" y1="13" x2="20" y2="5" stroke="#C4A46B" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="13" cy="13" r="1.5" fill="#8FAF8F"/>
+        <circle cx="20" cy="5" r="1.5" fill="#C4A46B" opacity="0.9"/>
+      </svg>
+      <span style="background:linear-gradient(135deg,#E8C99A,#C4A46B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:20px;font-weight:700;font-family:'Aptos Display',sans-serif!important">Alpha Scout</span>
+    </a>
+    <div style="display:flex;gap:6px">
+      <a href="/home" class="nav-btn">🏠 Home</a>
+      <a href="/etf" class="nav-btn">📊 ETF Scanner</a>
+      <a href="/etf-lab" class="nav-btn active">🧪 ETF Lab</a>
+      <a href="/portfolio" class="nav-btn">💼 Portfolio</a>
+      <a href="/macro" class="nav-btn">📈 Macro</a>
+    </div>
+  </div>
+</nav>
+
+<div class="lab-search-wrap">
+  <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px">
+    <span style="font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--purple)">🧪 ETF Lab</span>
+    <span style="font-size:11px;color:var(--text3)">Deep-dive analysis — dissect any ETF's suitability for your portfolio</span>
+  </div>
+  <div class="lab-search-row">
+    <div class="lab-input-box">
+      <span style="font-size:16px">🔬</span>
+      <input id="labInput" type="text" placeholder="Ticker — e.g. SCHD, JEPI, QQQ, VTI"
+        oninput="this.value=this.value.toUpperCase()"
+        onkeydown="if(event.key==='Enter')runLab()">
+    </div>
+    <button class="lab-go" onclick="runLab()">Analyze →</button>
+    <span id="labStatus" style="font-size:12px;color:var(--text3)"></span>
+  </div>
+</div>
+
+<div class="lab-main" id="labResults">
+  <div class="empty-state">
+    <div class="empty-icon">🧪</div>
+    <div style="font-size:14px;color:var(--text2);margin-bottom:6px">Enter any ETF ticker above to begin the deep-dive analysis</div>
+    <div style="font-size:12px">Covers expense ratio · holdings · sectors · momentum · Fed sensitivity · portfolio fit</div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+let labHoldings = [];
+let labHoldingsPage = 1;
+const HOLDINGS_PER_PAGE = 25;
+
+async function runLab(){
+  const ticker = document.getElementById('labInput').value.trim().toUpperCase();
+  if(!ticker) return;
+  const status = document.getElementById('labStatus');
+  const results = document.getElementById('labResults');
+  status.innerHTML = '<span class="spinner"></span> Fetching...';
+  results.innerHTML = `<div class="empty-state"><span class="spinner"></span>
+    <div style="margin-top:14px;font-size:14px;color:var(--text2)">Analyzing ${ticker}…</div>
+    <div style="margin-top:6px;font-size:11px">Pulling holdings, sector data, momentum signals — allow 20–60s on first load (longer for large international funds)</div></div>`;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 75000);
+    const r = await fetch(API+'/api/etf/lab/'+encodeURIComponent(ticker), {signal:ctrl.signal});
+    clearTimeout(timer);
+    const d = await r.json();
+    if(d.error){ status.innerHTML=`<span style="color:var(--red)">❌ ${d.error}</span>`; results.innerHTML=`<div class="empty-state"><div class="empty-icon">⚠️</div><div>${d.error}</div></div>`; return; }
+    status.innerHTML='';
+    renderLab(d);
+  } catch(e) {
+    status.innerHTML=`<span style="color:var(--red)">Error: ${e.message}</span>`;
+  }
+}
+
+function f(v,d=1,s=''){if(v==null)return'—';return(+v).toFixed(d)+s;}
+function fAUM(v){if(!v)return'—';if(v>=1e12)return'$'+(v/1e12).toFixed(2)+'T';if(v>=1e9)return'$'+(v/1e9).toFixed(2)+'B';if(v>=1e6)return'$'+(v/1e6).toFixed(1)+'M';return'$'+v.toLocaleString();}
+function fPct(v,sign=false){if(v==null)return'—';const s=sign&&v>0?'+':'';return s+(+v).toFixed(2)+'%';}
+function cPct(v){return v==null?'var(--text3)':v>=0?'var(--green)':'var(--red)';}
+function momColor(s){return s>75?'var(--green)':s>=45?'var(--amber)':'var(--red)';}
+function peRelationWord(signal){ return signal==='above'?'above':signal==='below'?'below':'near'; }
+
+function categoryLabel(cat){
+  if(!cat) return '';
+  // Add "US" prefix to domestic size/style categories
+  const domestic = ['Large Value','Large Growth','Large Blend','Mid-Cap Value','Mid-Cap Growth',
+    'Mid-Cap Blend','Small Value','Small Growth','Small Blend','Large Cap','Mid Cap','Small Cap'];
+  for(const d of domestic){
+    if(cat.includes(d) && !cat.includes('Intl') && !cat.includes('Foreign') && !cat.includes('World'))
+      return cat.replace(d,'US '+d)+' Fund';
+  }
+  return cat;
+}
+
+const METRIC_INFO = {
+  'AUM': "WHAT IT IS: Total dollar value of all assets the fund holds.\n\nWHAT IT TELLS YOU: The fund's size, popularity, and liquidity.\n\nHOPE TO SEE: Larger AUM (generally $100M+) — better liquidity, tighter bid-ask spreads, lower risk of the fund closing.\n\nBE CONCERNED IF: AUM is very small (under ~$50M) — real risk of fund closure/liquidation and wider trading spreads.",
+  'Exp. Ratio': "WHAT IT IS: The fund's annual fee, as a % of your investment, covering management and operating costs.\n\nWHAT IT TELLS YOU: The direct, automatic drag on your returns every year.\n\nHOPE TO SEE: Lower is better — broad index funds are typically 0.03%–0.20%.\n\nBE CONCERNED IF: Fees run 0.75%+ without a clear reason (e.g. active management, niche strategy) — high fees compound against you over decades.",
+  'Annual Div Rate': "WHAT IT IS: The fund's dividend/distribution payments over the trailing 12 months, expressed as a % of its current price.\n\nWHAT IT TELLS YOU: The income return you'd earn from distributions alone, separate from price appreciation.\n\nHOPE TO SEE: A yield consistent with the fund's stated strategy — modest for growth funds, higher for income/dividend-focused funds — and stable or growing over time.\n\nBE CONCERNED IF: An unusually high yield relative to the fund's category can signal underlying stress (falling share price mechanically inflates yield) or a fund using options/leverage to manufacture income that may not be sustainable long-term.",
+  'Beta': "WHAT IT IS: How much the fund's price tends to move relative to the overall market (S&P 500 = 1.0).\n\nWHAT IT TELLS YOU: Whether the fund amplifies or dampens broad market swings.\n\nHOPE TO SEE: A beta that matches your risk tolerance — near 1.0 for market-like risk, below 1.0 for a smoother ride, above 1.0 if you want more upside/downside.\n\nBE CONCERNED IF: The beta is much higher than you expected for what you thought was a 'safe' holding.",
+  'Rebalance': "WHAT IT IS: How often the fund's underlying index is reconstituted to reflect its rules.\n\nWHAT IT TELLS YOU: How 'fresh' the holdings stay, and when to expect turnover-driven costs/taxable events.\n\nHOPE TO SEE: A cadence consistent with the fund's category (e.g. quarterly for S&P funds, annual for Russell funds).\n\nBE CONCERNED IF: Rebalancing is unusually frequent for the fund's type — can mean higher trading costs passed on to you. 'N/A' just means we couldn't determine it, not a red flag by itself.",
+  '52-Wk High': "WHAT IT IS: The highest price the ETF has traded at over the past 52 weeks.\n\nWHAT IT TELLS YOU: A reference point for how far today's price sits from its recent peak.\n\nHOPE TO SEE: Price near/above this level often reflects strong momentum — though buying near a peak carries its own risk.\n\nBE CONCERNED IF: A sudden, sharp drop from this level without a clear reason.",
+  '52-Wk Low': "WHAT IT IS: The lowest price the ETF has traded at over the past 52 weeks.\n\nWHAT IT TELLS YOU: The floor of its recent trading range.\n\nHOPE TO SEE: Price well above this level generally signals recovery/uptrend from its worst point.\n\nBE CONCERNED IF: Price is sitting at or near this level — can signal weak momentum, though some investors see this as a value opportunity depending on strategy.",
+  'Trailing P/E': "WHAT IT IS: Price relative to the fund's blended trailing 12-month earnings.\n\nWHAT IT TELLS YOU: How expensive the fund's holdings are relative to their recent profits — a core valuation gauge.\n\nHOPE TO SEE: A P/E in line with or below historical norms/peers — reasonable valuation.\n\nBE CONCERNED IF: P/E is well above historical averages — can signal an expensive fund more vulnerable to a pullback.",
+  'Price/Book': "WHAT IT IS: Price relative to the accounting (book) value of the underlying holdings' assets.\n\nWHAT IT TELLS YOU: How much investors are paying above the liquidation/accounting value of the businesses owned.\n\nHOPE TO SEE: Lower P/B (often under ~3x) — can indicate a value-oriented, potentially undervalued portfolio.\n\nBE CONCERNED IF: Very high P/B (10x+) — investors are paying heavily for growth/intangibles, which carries more risk if that growth disappoints.",
+  'PEG Ratio': "WHAT IT IS: The P/E ratio divided by expected earnings growth — a growth-adjusted valuation measure.\n\nWHAT IT TELLS YOU: Whether the price is justified by growth prospects, not just a raw P/E number.\n\nHOPE TO SEE: PEG near or below 1.0 — often considered reasonably priced for its growth.\n\nBE CONCERNED IF: PEG is well above 2.0 — may mean you're overpaying for growth that isn't guaranteed to show up.",
+  'Price/Sales': "WHAT IT IS: Price relative to the fund's blended trailing revenue.\n\nWHAT IT TELLS YOU: A valuation measure that still works even when holdings have negative or volatile earnings (unlike P/E).\n\nHOPE TO SEE: Lower P/S relative to sector/history — a cheaper valuation on a revenue basis.\n\nBE CONCERNED IF: Very high P/S — common in speculative growth/tech-heavy funds, meaning a lot of future growth is already priced in.",
+};
+function infoDot(label){
+  const info = METRIC_INFO[label];
+  if(!info) return '';
+  return `<span style="position:absolute;top:4px;left:4px;width:6px;height:6px;border-radius:50%;background:var(--text3);cursor:help;opacity:0.6" title="${label.toUpperCase()}
+
+${info}"></span>`;
+}
+
+function renderLab(d){
+  const m = d.momentum || {};
+  const pf = d.portfolio_fit || {};
+
+  // ── Header ──────────────────────────────────────────────────────────────
+  const chg = d.day_change_pct;
+  const chgClass = chg == null ? 'price-flat' : chg > 0 ? 'price-up' : 'price-dn';
+  const chgTxt = chg == null ? '—' : `${chg >= 0 ? '+' : ''}${f(d.day_change,2)} (${chg>=0?'+':''}${f(chg,2)}%)`;
+  const catLabel = categoryLabel(d.category);
+
+  const headerHTML = `<div class="etf-header">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">
+      <div>
+        <div class="etf-ticker">${d.ticker}</div>
+        <div class="etf-fullname">${d.name}</div>
+        ${catLabel ? `<div class="etf-category">${catLabel}</div>` : ''}
+        <div class="etf-price-row">
+          <span class="etf-price">$${f(d.price,2)}</span>
+          <span class="price-change ${chgClass}">${chgTxt}</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end;width:100%;max-width:640px">
+        <div style="display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:10px;width:100%">
+          ${[
+            ['AUM', fAUM(d.aum), 1],
+            ['Exp. Ratio', d.expense_ratio!=null?f(d.expense_ratio,2)+'%':'—', 1],
+            ['Annual Div Rate', d.dividend_yield!=null?f(d.dividend_yield,2)+'%':'—', 1],
+            ['Beta', f(d.beta,2), 1],
+            ['Rebalance', d.rebalance_frequency||'N/A', 2],
+          ].map(([l,v,span])=>`<div class="stat-box" style="text-align:center;position:relative;grid-column:span ${span}">
+            ${infoDot(l)}
+            <div class="stat-label">${l}</div><div class="stat-val" style="font-size:15px">${v}</div>
+            ${l==='Rebalance'&&d.rebalance_source==='sec_edgar_empirical'?`<div style="position:absolute;top:4px;right:4px;font-size:8px" title="Detected from real SEC N-PORT filing history">📊</div>`:''}
+            ${l==='Beta'&&d.valuation_source&&d.valuation_source.beta&&d.valuation_source.beta.method==='weighted_avg_holdings'?`<div style="position:absolute;top:4px;right:4px;font-size:8px;cursor:help" title="Weighted average of underlying holdings' individual betas (${d.valuation_source.beta.coverage_pct}% of fund weight had usable data) — Yahoo didn't have a direct beta reading for this fund">Σ</div>`:''}
+          </div>`).join('')}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,minmax(90px,1fr));gap:10px;width:100%">
+          ${[
+            ['52-Wk High', d.fifty_two_week_high!=null?'$'+f(d.fifty_two_week_high,2):'—', d.pct_from_52h, null],
+            ['52-Wk Low', d.fifty_two_week_low!=null?'$'+f(d.fifty_two_week_low,2):'—', d.pct_from_52l, null],
+            ['Trailing P/E', d.pe_ratio!=null?f(d.pe_ratio,1)+'x':'—', null, null],
+            ['Price/Book', d.price_to_book!=null?f(d.price_to_book,2)+'x':'—', null, d.valuation_source&&d.valuation_source.price_to_book],
+            ['PEG Ratio', d.peg_ratio!=null?f(d.peg_ratio,2):'—', null, d.valuation_source&&d.valuation_source.peg_ratio],
+            ['Price/Sales', d.price_to_sales!=null?f(d.price_to_sales,2)+'x':'—', null, d.valuation_source&&d.valuation_source.price_to_sales],
+          ].map(([l,v,pct,src])=>`<div class="stat-box" style="text-align:center;position:relative">
+            ${infoDot(l)}
+            <div class="stat-label">${l}</div><div class="stat-val" style="font-size:14px">${v}</div>
+            ${pct!=null?`<div style="font-size:11px;font-weight:600;margin-top:2px;color:${pct>=0?'var(--green)':'var(--red)'}">${pct>=0?'+':''}${f(pct,1)}%</div>`:''}
+            ${src&&src.method==='weighted_harmonic_avg_holdings'?`<div style="position:absolute;top:4px;right:4px;font-size:8px;cursor:help" title="Weighted harmonic average of underlying holdings' individual ratios (${src.coverage_pct}% of fund weight had usable data) — ETFs don't have their own earnings/book value/sales the way a single company does.${src.excluded_negative_growth_pct?` ${src.excluded_negative_growth_pct}% of fund weight was excluded from this calculation due to negative earnings growth (a negative PEG isn't a low value, it's a different signal — deteriorating earnings — that would corrupt the blend if averaged in directly).`:''}">Σ</div>`:''}
+          </div>`).join('')}
+        </div>
+        ${d.rebalance_note ? `<div style="font-size:12px;color:var(--text3);text-align:right;max-width:480px;line-height:1.4">
+          ${d.rebalance_source==='sec_edgar_empirical' ? '📊 SEC EDGAR (empirical — detected from filing history):' : d.rebalance_source==='index_family_heuristic' ? 'ℹ️ Estimated (based on index family):' : 'ℹ️'} ${d.rebalance_note}
+        </div>` : ''}
+      </div>
+    </div>
+  </div>`;
+
+  // ── 1. Summary ───────────────────────────────────────────────────────────
+  const summaryHTML = `<div class="panel grid-full">
+    <div class="panel-hdr"><span class="panel-title">① Summary &amp; Purpose</span></div>
+    <div class="panel-body">
+      <p style="font-size:15px;color:var(--text2);line-height:1.75">${d.description || 'No description available.'}</p>
+    </div>
+  </div>`;
+
+  // ── 3. Sector breakdown ──────────────────────────────────────────────────
+  const sectors = d.sector_weights || [];
+  const bench = d.benchmark_sectors || {};
+  // Normalise sector names from Yahoo (camelCase) to Title Case
+  function normSec(s){
+    return s.replace(/([A-Z])/g,' $1').replace(/^./, c=>c.toUpperCase()).trim()
+      .replace('Real Estate','Real Estate')
+      .replace('Consumer Cyclical','Cons. Cyclical')
+      .replace('Consumer Defensive','Cons. Defensive')
+      .replace('Communication Services','Comm. Services')
+      .replace('Basic Materials','Materials')
+      .replace('Financial Services','Financials');
+  }
+  const allWts = [...sectors.map(s=>s.weight), ...Object.values(bench)];
+  const maxWt = allWts.length ? Math.max(...allWts) : 40;
+
+  const sectorRows = sectors.length ? sectors.map(s => {
+    const label = normSec(s.sector);
+    // Try matching benchmark by normalised name
+    const bw = bench[s.sector] || Object.entries(bench).find(([k])=>normSec(k)===label)?.[1] || 0;
+    const delta = s.weight - bw;
+    const dColor = Math.abs(delta)<1.5?'var(--text3)':delta>0?'var(--amber)':'var(--blue)';
+    return `<div class="sec-row">
+      <div class="sec-name" title="${s.sector}">${label}</div>
+      <div class="sec-bars">
+        <div class="sec-bar-wrap">
+          <div class="sec-bar-track">
+            <div class="sec-bar-fill" style="width:${Math.min(100,s.weight/maxWt*100).toFixed(1)}%;background:var(--blue)"></div>
+          </div>
+          <span class="sec-pct">${s.weight.toFixed(1)}%</span>
+          <span class="sec-delta" style="color:${dColor}">${delta>=0?'+':''}${delta.toFixed(1)}%</span>
+        </div>
+        ${bw>0?`<div class="sec-bar-wrap">
+          <div class="sec-bar-track">
+            <div class="sec-bar-fill" style="width:${Math.min(100,bw/maxWt*100).toFixed(1)}%;background:rgba(239,159,39,.55)"></div>
+          </div>
+          <span class="sec-pct" style="color:var(--amber)">${bw.toFixed(1)}%</span>
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('') : '<div style="color:var(--text3);font-size:12px">Sector data not available for this ETF type (common for bond, commodity, or covered-call funds)</div>';
+
+  const benchName = d.benchmark_name || 'VTI';
+  const sectorHTML = `<div class="panel">
+    <div class="panel-hdr">
+      <span class="panel-title">② Sector Breakdown vs. ${benchName}</span>
+    </div>
+    <div class="panel-body">
+      <div class="sec-legend">
+        <span><span class="sec-dot" style="background:var(--blue)"></span>ETF Weight</span>
+        <span><span class="sec-dot" style="background:rgba(239,159,39,.6)"></span>${benchName} Benchmark</span>
+        <span style="color:var(--amber)">▲ = Overweight</span>
+        <span style="color:var(--blue)">▼ = Underweight</span>
+      </div>
+      ${sectorRows}
+    </div>
+  </div>`;
+
+  // ── 6. Holdings (paginated) ─────────────────────────────────────────────
+  labHoldings = d.holdings || [];
+  labHoldingsPage = 1;
+  const sourceLabel = d.holdings_source === 'sec_edgar' ? 'SEC N-PORT filing (full holdings)' : 'Yahoo Finance';
+
+  const holdingsHTML = `<div class="panel grid-full">
+    <div class="panel-hdr">
+      <span class="panel-title">④ Holdings by Weight <span style="font-size:11px;color:var(--text3);font-weight:400">(${labHoldings.length} total · ${sourceLabel})</span></span>
+      <a href="${d.holdings_yahoo_url||'#'}" target="_blank" style="font-size:11px;color:var(--blue)">Full holdings list ↗</a>
+    </div>
+    ${d.holdings_count_note ? `<div style="padding:8px 16px;font-size:11px;color:var(--text3);background:var(--bg3);border-bottom:1px solid var(--border)">ℹ️ ${d.holdings_count_note} — for the complete list, use the link above.</div>` : ''}
+    <div class="h-scroll">
+      <table class="h-table">
+        <thead><tr><th>#</th><th>Ticker</th><th>Name</th><th>Industry</th><th>Weight</th><th>Day Chg</th><th>TTM Return</th></tr></thead>
+        <tbody id="holdingsTbody"></tbody>
+      </table>
+    </div>
+    <div id="holdingsPager" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border-top:1px solid var(--border)"></div>
+  </div>`;
+
+  // ── 7. Beta & Momentum (combined panel) ────────────────────────────────
+  const betaColor = d.beta==null?'var(--text3)':d.beta>1.2?'var(--red)':d.beta<0.8?'var(--green)':'var(--amber)';
+  const betaSignal = d.beta==null?'—':d.beta>1.2?'⚡ Aggressive — amplifies market moves':d.beta<0.8?'🛡️ Defensive — dampens market moves':'⚖️ Near-market correlated';
+
+  const score = m.score;
+  const momClass = score>75?'mom-strong':score>=45?'mom-neutral':'mom-weak';
+  const momComponents = [
+    {label:'3-Mo Return Percentile', val:m.percentile_3m, note:m.return_3m!=null?fPct(m.return_3m,true):null},
+    {label:'6-Mo Return Percentile', val:m.percentile_6m, note:m.return_6m!=null?fPct(m.return_6m,true):null},
+    {label:'SMA-200 Distance',       val:m.sma200_distance_pct!=null?Math.min(100,Math.max(0,50+m.sma200_distance_pct*2.5)):null, note:m.sma200_distance_pct!=null?fPct(m.sma200_distance_pct,true):null},
+    {label:'RSI-14',                 val:m.rsi_14, note:m.rsi_14!=null?m.rsi_14.toFixed(0):null},
+    {label:'60-Day Realized Vol',    val:m.vol_60d_annualized!=null?Math.max(0,100-(m.vol_60d_annualized-5)*2.5):null, note:m.vol_60d_annualized!=null?m.vol_60d_annualized.toFixed(1)+'%':null},
+  ];
+
+  const betaHTML = `<div class="panel">
+    <div class="panel-hdr"><span class="panel-title">③ Beta &amp; Momentum</span></div>
+    <div class="panel-body">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+        <div style="font-size:48px;font-weight:800;color:${betaColor};font-variant-numeric:tabular-nums;line-height:1">${f(d.beta,2)}</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${betaSignal}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:3px">Measured vs. S&amp;P 500 · 1.0 = in lockstep with market</div>
+        </div>
+      </div>
+      ${(d.sector_weights||[]).length?`<div style="font-size:11px;color:var(--text2);line-height:1.7;margin-bottom:16px">
+        <strong style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.06em">Key sensitivities from top holdings:</strong><br>
+        ${(d.sector_weights||[]).slice(0,4).map(s=>`• <strong>${normSectorShort(s.sector)}</strong> (${s.weight.toFixed(1)}%) — ${sectorSensitivity(s.sector)}`).join('<br>')}
+      </div>`:''}
+
+      <div style="border-top:1px solid var(--border);margin:14px 0;padding-top:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Momentum Score</div>
+        <div style="display:flex;align-items:flex-start;gap:20px;flex-wrap:wrap">
+          <div>
+            <div class="mom-score-big" style="color:${score!=null?momColor(score):'var(--text3)'}">${score!=null?score.toFixed(0):'—'}<span style="font-size:16px;color:var(--text3)">/100</span></div>
+            ${score!=null?`<div class="mom-signal ${momClass}">${m.signal||''}</div>`:''}
+            <div style="margin-top:10px;font-size:10px;color:var(--text3);line-height:1.6">Trend 50%<br>Technical 30%<br>Volatility 20%</div>
+          </div>
+          <div style="flex:1;min-width:240px">
+            ${momComponents.map(c=>`<div class="mom-bar-row">
+              <div class="mom-label">${c.label}</div>
+              <div class="mom-track"><div class="mom-fill" style="width:${c.val!=null?Math.min(100,Math.max(0,c.val)).toFixed(1):0}%"></div></div>
+              <div class="mom-val">${c.note||'—'}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;font-size:11px">
+          <div style="background:var(--green-dim);border:1px solid rgba(29,184,122,.25);border-radius:4px;padding:5px 10px;color:var(--green)"><strong>&gt;75</strong> Strong Positive</div>
+          <div style="background:var(--amber-dim);border:1px solid rgba(239,159,39,.25);border-radius:4px;padding:5px 10px;color:var(--amber)"><strong>45–74</strong> Neutral</div>
+          <div style="background:var(--red-dim);border:1px solid rgba(226,75,74,.25);border-radius:4px;padding:5px 10px;color:var(--red)"><strong>&lt;45</strong> Negative</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Advanced Charting: price/total return comparison ────────────────────
+  const chartPanelHTML = `<div class="panel grid-full">
+    <div class="panel-hdr">
+      <span class="panel-title">Advanced Charting — Price &amp; Total Return</span>
+    </div>
+    <div class="panel-body">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap" id="chartPeriodBtns"></div>
+        <div style="display:flex;gap:4px" id="chartModeBtns"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <div id="chartTickerChips" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="chartAddTickerInput" type="text" placeholder="Add ETF to compare"
+            style="background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:6px 10px;font-size:12px;color:var(--text);width:150px;font-family:'Aptos Display',sans-serif!important"
+            oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')addChartCompareTicker()">
+          <button onclick="addChartCompareTicker()" style="padding:6px 12px;font-size:12px;font-weight:600;border-radius:4px;border:none;background:var(--purple);color:#fff;cursor:pointer">+ Add</button>
+        </div>
+      </div>
+      <div id="chartArea" style="min-height:280px;display:flex;align-items:center;justify-content:center">
+        <span class="spinner"></span>
+      </div>
+      <div id="chartLegend" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px"></div>
+    </div>
+  </div>`;
+
+
+  // ── 10. Portfolio fit ────────────────────────────────────────────────────
+  const overlap = pf.overlapping_holdings || [];
+  const sectorComp = pf.sector_comparison || [];
+  const fitHTML = `<div class="panel grid-full">
+    <div class="panel-hdr"><span class="panel-title">⑤ Portfolio Fit Analysis</span></div>
+    <div class="panel-body">
+      ${pf.aggressiveness?`<div style="margin-bottom:14px;padding:10px 14px;border-radius:4px;background:var(--bg3);font-size:12px">
+        <strong style="color:var(--text)">Risk Profile: </strong>
+        <span style="color:${pf.etf_beta>pf.portfolio_beta*1.2?'var(--red)':pf.etf_beta<pf.portfolio_beta*0.8?'var(--green)':'var(--amber)'}">${pf.aggressiveness}</span>
+        <span style="color:var(--text3);margin-left:8px">(ETF β ${f(pf.etf_beta,2)} vs. portfolio avg β ${f(pf.portfolio_beta,2)})</span>
+      </div>`:'<div style="color:var(--text3);font-size:12px;margin-bottom:12px">Upload a portfolio CSV to enable personalized fit analysis.</div>'}
+      <div class="grid-2" style="gap:14px">
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Stock Overlap</div>
+          ${overlap.length?overlap.map(t=>`<span class="overlap-chip">${t}</span>`).join('')+'<div style="font-size:11px;color:var(--text3);margin-top:6px">'+overlap.length+' position'+(overlap.length>1?'s':'')+' in common</div>':'<span style="font-size:11px;color:var(--text3)">No direct stock overlap</span>'}
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Sector Weight vs. Your Portfolio</div>
+          ${sectorComp.length?sectorComp.slice(0,7).map(s=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px">
+            <div style="width:140px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.sector}</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="width:${Math.min(100,s.etf_weight*3).toFixed(0)}px;height:5px;background:var(--blue);border-radius:2px"></div>
+                <span style="color:var(--blue)">${s.etf_weight.toFixed(1)}%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="width:${Math.min(100,(s.portfolio_weight||0)*3).toFixed(0)}px;height:5px;background:var(--amber);border-radius:2px"></div>
+                <span style="color:var(--amber)">${(s.portfolio_weight||0).toFixed(1)}%</span>
+              </div>
+            </div>
+            <div style="font-size:10px;color:${s.delta>5?'var(--red)':s.delta<-5?'var(--green)':'var(--text3)'};width:42px;text-align:right">${s.delta>0?'+':''}${s.delta.toFixed(1)}%</div>
+          </div>`).join('')+'<div style="font-size:10px;color:var(--text3);margin-top:6px"><span style="color:var(--blue)">■</span> ETF &nbsp;<span style="color:var(--amber)">■</span> Your Portfolio</div>'
+          :'<span style="font-size:11px;color:var(--text3)">Requires portfolio data</span>'}
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  // ── Sector Performance & Rotation vs. VTI ───────────────────────────────
+  const rotation = d.sector_rotation || [];
+  function rsColor(v){ if(v==null) return 'var(--text3)'; return v>0?'var(--green)':v<0?'var(--red)':'var(--text3)'; }
+  function rsBar(v, maxAbs){
+    if(v==null) return '<span style="font-size:11px;color:var(--text3)">—</span>';
+    const pct = Math.min(100, Math.abs(v)/maxAbs*50);
+    const color = v>=0?'var(--green)':'var(--red)';
+    const side = v>=0 ? `left:50%;width:${pct}%` : `right:50%;width:${pct}%`;
+    return `<div class="rot-cell">
+      <div class="rot-bar-track"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border2)"></div><div class="rot-bar-fill" style="${side};background:${color}"></div></div>
+      <span style="font-size:11px;font-weight:600;color:${color};width:44px;text-align:right">${v>=0?'+':''}${v.toFixed(1)}%</span>
+    </div>`;
+  }
+  const allRS = rotation.flatMap(r => Object.values(r.relative_strength).filter(v=>v!=null));
+  const maxAbsRS = allRS.length ? Math.max(...allRS.map(Math.abs), 1) : 10;
+
+  const rotationRows = rotation.length ? rotation.map(r => `
+    <tr>
+      <td style="color:var(--text2);font-weight:600">${r.sector}</td>
+      <td style="color:var(--text3);font-size:11px">${r.proxy_etf}</td>
+      <td>${rsBar(r.relative_strength['1mo'], maxAbsRS)}</td>
+      <td>${rsBar(r.relative_strength['3mo'], maxAbsRS)}</td>
+      <td>${rsBar(r.relative_strength['6mo'], maxAbsRS)}</td>
+      <td>${rsBar(r.relative_strength['1yr'], maxAbsRS)}</td>
+    </tr>`).join('') : '';
+
+  const rotationHTML = rotation.length ? `<div class="panel grid-full">
+    <div class="panel-hdr">
+      <span class="panel-title">Sector Performance &amp; Rotation vs. ${benchName}</span>
+      <span style="font-size:11px;color:var(--text3)">Relative strength — positive = sector outperforming ${benchName}</span>
+    </div>
+    <div class="panel-body" style="padding:0">
+      <table class="rot-table">
+        <thead><tr><th>Sector</th><th>Proxy</th><th>1-Month</th><th>3-Month</th><th>6-Month</th><th>1-Year</th></tr></thead>
+        <tbody>${rotationRows}</tbody>
+      </table>
+      <div style="padding:10px 16px;font-size:10px;color:var(--text3)">Sorted by 3-month relative strength · sector performance measured via proxy ETFs (${[...new Set(rotation.map(r=>r.proxy_etf))].join(', ')})</div>
+    </div>
+  </div>` : '';
+
+  // ── Market Cycle Indicator ────────────────────────────────────────────
+  const cycle = d.market_cycle;
+  const cfit = d.cycle_fit;
+  let cycleHTML = '';
+  if(cycle){
+    const stageClass = 'cycle-' + (cycle.stage_key || 'mid');
+    const leanColor = l => l==='early'?'var(--green)':l==='mid'?'var(--blue)':l==='late'?'var(--amber)':'var(--red)';
+    const leanBg = l => l==='early'?'rgba(29,184,122,.15)':l==='mid'?'rgba(74,144,217,.15)':l==='late'?'rgba(239,159,39,.15)':'rgba(226,75,74,.15)';
+
+    const signalRows = (cycle.signals||[]).map(s => `
+      <div class="cycle-signal-row">
+        <span class="cycle-lean-chip" style="background:${leanBg(s.lean)};color:${leanColor(s.lean)}">${s.lean}</span>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:600;color:var(--text)">${s.factor}: <span style="font-weight:700;color:${leanColor(s.lean)}">${s.reading}</span></div>
+          ${s.note?`<div style="font-size:11px;color:var(--text3);margin-top:2px">${s.note}</div>`:''}
+        </div>
+      </div>`).join('');
+
+    const dist = cycle.stage_distribution || {};
+    const distBar = ['early','mid','late','contraction'].map(k => {
+      const pct = dist[k] || 0;
+      if(pct <= 0) return '';
+      return `<div style="width:${pct}%;background:${leanColor(k)};height:100%" title="${k}: ${pct}%"></div>`;
+    }).join('');
+
+    const fitSection = cfit ? `
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)">This ETF's Fit for the Current Cycle</span>
+          <span class="fit-badge" style="background:${cfit.fit_color==='green'?'var(--green-dim)':cfit.fit_color==='amber'?'var(--amber-dim)':'var(--red-dim)'};color:${cfit.fit_color==='green'?'var(--green)':cfit.fit_color==='amber'?'var(--amber)':'var(--red)'}">${cfit.fit_label}</span>
+        </div>
+        ${cfit.matches && cfit.matches.length ? cfit.matches.map(m=>`<div style="font-size:11px;color:var(--text2);padding:3px 0">✓ ${m}</div>`).join('')
+          : '<div style="font-size:11px;color:var(--text3)">No direct alignment found between this fund\'s category/sectors and the current cycle\'s historically-favored characteristics.</div>'}
+      </div>` : '';
+
+    cycleHTML = `<div class="panel grid-full">
+      <div class="panel-hdr">
+        <span class="panel-title">Market Cycle Indicator</span>
+        <span style="font-size:10px;color:var(--text3)">As of ${cycle.as_of}</span>
+      </div>
+      <div class="panel-body">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px">
+          <span class="cycle-stage-badge ${stageClass}">${cycle.stage}</span>
+          <span style="font-size:12px;color:var(--text2);flex:1;min-width:200px">${cycle.description}</span>
+        </div>
+        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin:12px 0 16px;background:var(--bg4)">${distBar}</div>
+
+        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Underlying Signals</div>
+        ${signalRows}
+
+        <div style="margin-top:14px">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Historically Favored In This Stage</div>
+          ${(cycle.favored_tags||[]).map(t=>`<span class="cycle-tag">${t}</span>`).join('')}
+        </div>
+        ${fitSection}
+        <div style="margin-top:14px;font-size:10px;color:var(--text3);line-height:1.5">ℹ️ This is a rules-based framework built from yield curve, labor, and inflation trends — not a forecast. Reasonable analysts can read the same data differently.</div>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById('labResults').innerHTML =
+    headerHTML + summaryHTML +
+    `<div class="grid-2">${sectorHTML}${betaHTML}</div>` +
+    chartPanelHTML +
+    rotationHTML +
+    holdingsHTML + cycleHTML + fitHTML;
+
+  renderHoldingsTable();
+  initChartPanel(d.ticker);
+}
+
+function renderHoldingsTable(){
+  const tbody = document.getElementById('holdingsTbody');
+  const pager = document.getElementById('holdingsPager');
+  if(!tbody) return;
+
+  if(!labHoldings.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px">Holdings not available</td></tr>`;
+    if(pager) pager.innerHTML = '';
+    return;
+  }
+
+  const maxHW = Math.max(...labHoldings.map(h=>h.weight||0), 1);
+  const totalPages = Math.max(1, Math.ceil(labHoldings.length / HOLDINGS_PER_PAGE));
+  if(labHoldingsPage > totalPages) labHoldingsPage = totalPages;
+  const start = (labHoldingsPage - 1) * HOLDINGS_PER_PAGE;
+  const pageItems = labHoldings.slice(start, start + HOLDINGS_PER_PAGE);
+
+  tbody.innerHTML = pageItems.map((h,i)=>{
+    const dc = h.day_change_pct;
+    const dcColor = dc==null?'var(--text3)':dc>=0?'var(--green)':'var(--red)';
+    const dcTxt = dc==null?'—':`${dc>=0?'+':''}${f(dc,2)}%`;
+    const ttm = h.ttm_return;
+    const ttmColor = ttm==null?'var(--text3)':ttm>=0?'var(--green)':'var(--red)';
+    const ttmTxt = ttm==null?'—':`${ttm>=0?'+':''}${f(ttm,1)}%`;
+    return `<tr>
+      <td style="color:var(--text3);width:32px">${start+i+1}</td>
+      <td style="font-weight:700;color:var(--blue)">${h.ticker||'—'}</td>
+      <td style="color:var(--text2)">${h.name||'—'}</td>
+      <td style="color:var(--text3);font-size:11px">${h.industry||'—'}</td>
+      <td><div class="w-bar-cell"><div class="w-track"><div class="w-fill" style="width:${maxHW>0?(h.weight/maxHW*100).toFixed(0):0}%"></div></div><span style="font-weight:600;color:var(--text);font-variant-numeric:tabular-nums">${f(h.weight,2)}%</span></div></td>
+      <td style="color:${dcColor};font-weight:600;font-variant-numeric:tabular-nums">${dcTxt}</td>
+      <td style="color:${ttmColor};font-weight:600;font-variant-numeric:tabular-nums">${ttmTxt}</td>
+    </tr>`;
+  }).join('');
+
+  if(pager) pager.innerHTML = buildHoldingsPagerHTML(totalPages);
+}
+
+function buildHoldingsPagerHTML(totalPages){
+  if(totalPages <= 1) return '';
+  function btn(p, label){
+    return `<button onclick="goToHoldingsPage(${p})" style="padding:5px 11px;font-size:12px;border-radius:4px;border:1px solid ${p===labHoldingsPage?'rgba(155,114,208,.5)':'var(--border)'};background:${p===labHoldingsPage?'rgba(155,114,208,.15)':'var(--bg3)'};color:${p===labHoldingsPage?'var(--purple)':'var(--text2)'};cursor:pointer;min-width:30px">${label||p}</button>`;
+  }
+  let pages = [];
+  pages.push(btn(Math.max(1,labHoldingsPage-1), '‹ Prev'));
+  for(let p=1;p<=totalPages;p++) pages.push(btn(p));
+  pages.push(btn(Math.min(totalPages,labHoldingsPage+1), 'Next ›'));
+  return pages.join('') + `<span style="font-size:11px;color:var(--text3);margin-left:8px">Page ${labHoldingsPage} of ${totalPages}</span>`;
+}
+
+function goToHoldingsPage(p){
+  labHoldingsPage = p;
+  renderHoldingsTable();
+}
+
+// ── Advanced Charting ──────────────────────────────────────────────────────
+let chartTickers = [];
+let chartPeriod = '1y';
+let chartMode = 'total';
+const CHART_COLORS = ['#F5F7FA','#9B72D0','#1DB87A','#EF9F27','#E24B4A','#2EC4B6','#F472B6','#94A3B8'];
+const CHART_PERIODS = [['1d','1D'],['1w','1W'],['1mo','1M'],['3mo','3M'],['6mo','6M'],['ytd','YTD'],['1y','1Y'],['3y','3Y'],['5y','5Y']];
+
+function initChartPanel(ticker){
+  chartTickers = [ticker];
+  chartPeriod = '1y';
+  chartMode = 'total';
+  renderChartControls();
+  fetchAndRenderChart();
+}
+
+function renderChartControls(){
+  const periodBtns = document.getElementById('chartPeriodBtns');
+  const modeBtns = document.getElementById('chartModeBtns');
+  const chips = document.getElementById('chartTickerChips');
+  if(!periodBtns) return;
+
+  periodBtns.innerHTML = CHART_PERIODS.map(([key,label]) => `
+    <button onclick="setChartPeriod('${key}')" style="padding:5px 12px;font-size:11px;font-weight:600;border-radius:4px;cursor:pointer;
+      border:1px solid ${chartPeriod===key?'rgba(74,144,217,.5)':'var(--border)'};
+      background:${chartPeriod===key?'var(--blue-dim)':'var(--bg3)'};
+      color:${chartPeriod===key?'var(--blue)':'var(--text2)'}">${label}</button>`).join('');
+
+  modeBtns.innerHTML = ['total','price'].map(m => `
+    <button onclick="setChartMode('${m}')" style="padding:5px 12px;font-size:11px;font-weight:600;border-radius:4px;cursor:pointer;
+      border:1px solid ${chartMode===m?'rgba(155,114,208,.5)':'var(--border)'};
+      background:${chartMode===m?'rgba(155,114,208,.15)':'var(--bg3)'};
+      color:${chartMode===m?'var(--purple)':'var(--text2)'}">${m==='total'?'Total Return':'Price Return'}</button>`).join('');
+
+  chips.innerHTML = chartTickers.map((t,i) => `
+    <span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid ${CHART_COLORS[i%CHART_COLORS.length]};border-radius:12px;padding:3px 6px 3px 10px;font-size:11px;color:var(--text2)">
+      <span style="width:8px;height:8px;border-radius:2px;background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>
+      ${t}
+      ${chartTickers.length>1?`<button onclick="removeChartCompareTicker('${t}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px">✕</button>`:''}
+    </span>`).join('');
+}
+
+function addChartCompareTicker(){
+  const input = document.getElementById('chartAddTickerInput');
+  const t = input.value.trim().toUpperCase();
+  if(!t) return;
+  if(chartTickers.includes(t)){ input.value=''; return; }
+  if(chartTickers.length >= 8){ input.value=''; return; }
+  chartTickers.push(t);
+  input.value = '';
+  renderChartControls();
+  fetchAndRenderChart();
+}
+
+function removeChartCompareTicker(t){
+  chartTickers = chartTickers.filter(x => x !== t);
+  if(!chartTickers.length) return;
+  renderChartControls();
+  fetchAndRenderChart();
+}
+
+function setChartPeriod(p){
+  chartPeriod = p;
+  renderChartControls();
+  fetchAndRenderChart();
+}
+
+function setChartMode(m){
+  chartMode = m;
+  renderChartControls();
+  fetchAndRenderChart();
+}
+
+async function fetchAndRenderChart(){
+  const area = document.getElementById('chartArea');
+  if(!area) return;
+  area.innerHTML = '<span class="spinner"></span>';
+  try{
+    const ctrl = new AbortController();
+    const timer = setTimeout(()=>ctrl.abort(), 30000);
+    const r = await fetch(`${API}/api/etf/lab/chart?tickers=${chartTickers.join(',')}&period=${chartPeriod}&mode=${chartMode}`, {signal:ctrl.signal});
+    clearTimeout(timer);
+    const d = await r.json();
+    if(d.error || !d.series){
+      area.innerHTML = `<span style="color:var(--text3);font-size:12px">${d.error || 'No chart data available'}</span>`;
+      document.getElementById('chartLegend').innerHTML = '';
+      return;
+    }
+    renderComparisonChart(d.series);
+  }catch(e){
+    area.innerHTML = `<span style="color:var(--red);font-size:12px">Chart failed to load: ${e.message}</span>`;
+  }
+}
+
+function formatChartDate(isoStr){
+  const dt = new Date(isoStr);
+  if(isNaN(dt)) return '';
+  if(chartPeriod === '1d' || chartPeriod === '1w'){
+    return dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  }
+  if(chartPeriod === '5y' || chartPeriod === '3y'){
+    return dt.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+  }
+  return dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function renderComparisonChart(seriesMap){
+  const area = document.getElementById('chartArea');
+  const legend = document.getElementById('chartLegend');
+  const validTickers = chartTickers.filter(t => seriesMap[t] && seriesMap[t].length > 1);
+
+  if(!validTickers.length){
+    area.innerHTML = '<span style="color:var(--text3);font-size:12px">No data available for the selected tickers/period</span>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  const W = 900, H = 300, padL = 46, padR = 12, padT = 14, padB = 24;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  let allVals = [];
+  validTickers.forEach(t => seriesMap[t].forEach(p => allVals.push(p.value)));
+  let minV = Math.min(...allVals, 0), maxV = Math.max(...allVals, 0);
+  const pad = (maxV - minV) * 0.08 || 1;
+  minV -= pad; maxV += pad;
+
+  const xFor = (i, len) => padL + (i/(len-1)) * plotW;
+  const yFor = v => padT + plotH - ((v - minV)/(maxV - minV)) * plotH;
+  const zeroY = yFor(0);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:320px">`;
+
+  // Gridlines + y-axis labels (min, zero, max)
+  [minV, 0, maxV].forEach(v => {
+    const y = yFor(v);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="${v===0?'rgba(255,255,255,0.32)':'rgba(255,255,255,0.16)'}" stroke-width="1" ${v===0?'stroke-dasharray="4,3"':''}/>`;
+    svg += `<text x="${padL-6}" y="${y+3}" text-anchor="end" font-size="9" fill="var(--text3)">${v.toFixed(1)}%</text>`;
+  });
+
+  // X-axis date labels — use the longest series as the date reference,
+  // since all tickers share the same period/interval but may have
+  // slightly different data availability at the edges
+  const refSeries = validTickers.map(t=>seriesMap[t]).reduce((a,b)=> b.length>a.length?b:a, []);
+  const numXLabels = 6;
+  if(refSeries.length > 1){
+    for(let li=0; li<numXLabels; li++){
+      const idx = Math.round((li/(numXLabels-1)) * (refSeries.length-1));
+      const x = xFor(idx, refSeries.length);
+      svg += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H-padB}" stroke="rgba(255,255,255,0.16)" stroke-width="1"/>`;
+      svg += `<text x="${x.toFixed(1)}" y="${H-padB+14}" text-anchor="${li===0?'start':li===numXLabels-1?'end':'middle'}" font-size="9" fill="var(--text3)">${formatChartDate(refSeries[idx].date)}</text>`;
+    }
+  }
+
+  // One polyline per ticker
+  validTickers.forEach((t, ti) => {
+    const series = seriesMap[t];
+    const color = CHART_COLORS[chartTickers.indexOf(t) % CHART_COLORS.length];
+    const points = series.map((p,i) => `${xFor(i, series.length).toFixed(1)},${yFor(p.value).toFixed(1)}`).join(' ');
+    svg += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+
+  svg += `</svg>`;
+  area.innerHTML = svg;
+
+  // Legend: ticker, color, final % return
+  legend.innerHTML = validTickers.map(t => {
+    const series = seriesMap[t];
+    const finalVal = series[series.length-1].value;
+    const color = CHART_COLORS[chartTickers.indexOf(t) % CHART_COLORS.length];
+    const vColor = finalVal >= 0 ? 'var(--green)' : 'var(--red)';
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:12px">
+      <span style="width:10px;height:10px;border-radius:2px;background:${color}"></span>
+      <span style="font-weight:700;color:var(--text)">${t}</span>
+      <span style="font-weight:600;color:${vColor}">${finalVal>=0?'+':''}${finalVal.toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+}
+
+function normSectorShort(s){
+  return s.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()).trim()
+    .replace('Real Estate','Real Estate').replace('Communication Services','Comm. Services')
+    .replace('Consumer Cyclical','Cons. Cyclical').replace('Consumer Defensive','Cons. Defensive')
+    .replace('Financial Services','Financials').replace('Basic Materials','Materials');
+}
+
+function sectorSensitivity(sector){
+  const s = sector.toLowerCase();
+  if(s.includes('tech'))      return 'Rate-sensitive growth; long-duration valuations hurt by rising rates';
+  if(s.includes('real'))      return 'Highly rate-sensitive; rising rates compress cap rates';
+  if(s.includes('util'))      return 'Bond-proxy; closely tracks interest rate direction';
+  if(s.includes('financ')||s.includes('bank')) return 'Higher rates boost NIM; loan defaults rise in recessions';
+  if(s.includes('health'))    return 'Defensive; relatively low rate sensitivity';
+  if(s.includes('cyclical')||s.includes('discretionary')) return 'Cyclical; sensitive to consumer confidence and credit';
+  if(s.includes('defensive')||s.includes('staples')) return 'Defensive; low beta, tends to outperform during slowdowns';
+  if(s.includes('energy'))    return 'Driven by commodity prices more than Fed policy';
+  if(s.includes('material'))  return 'Sensitive to global growth cycle and USD strength';
+  if(s.includes('indust'))    return 'Cyclical; benefits from capex and infrastructure spending';
+  if(s.includes('comm'))      return 'Mixed — ad revenue cyclical, telecom more defensive';
+  return 'Moderate rate sensitivity';
+}
+
+document.getElementById('labInput').focus();
+</script>
+</body>
+</html>

@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Alpha Scout — Portfolio Analysis</title>
+<style>
+:root{
+  --bg:#0a0d14;--bg2:#131720;--bg3:#181d28;--bg4:#1c2230;--bg5:#222837;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#ffffff;--text2:#c8cdd8;--text3:#8892a4;
+  --green:#1DB87A;--green-dim:rgba(29,184,122,0.1);
+  --red:#E24B4A;--red-dim:rgba(226,75,74,0.1);
+  --amber:#EF9F27;--amber-dim:rgba(239,159,39,0.1);
+  --blue:#4A90D9;--blue-dim:rgba(74,144,217,0.1);
+  --purple:#7F77DD;
+  --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden;}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.nav-left{display:flex;align-items:center;gap:8px;}
+.nav-brand{font-family:Georgia,serif;font-size:18px;font-weight:700;letter-spacing:.06em;color:var(--text);margin-right:14px;display:flex;align-items:center;gap:8px;}
+.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:500;text-decoration:none;color:var(--text2);background:transparent;cursor:pointer;transition:all .15s;}
+.nav-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.nav-btn.active{background:var(--blue-dim);color:var(--blue);border-color:rgba(74,144,217,.4);}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.clock{font-family:'Courier New',monospace;font-size:13px;color:var(--text2);}
+.market-status{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.04em;}
+.ms-closed{background:var(--red-dim);color:var(--red);}
+.ms-open{background:var(--green-dim);color:var(--green);}
+.btn-refresh{padding:6px 12px;border:1px solid rgba(74,144,217,.4);border-radius:var(--radius);background:var(--blue-dim);color:var(--blue);cursor:pointer;font-size:11px;font-weight:500;transition:all .15s;}
+.btn-refresh:hover{background:rgba(74,144,217,.2);}
+
+.page{max-width:1500px;margin:0 auto;padding:20px 24px 60px;}
+.section-hdr{display:flex;align-items:center;gap:10px;margin:28px 0 14px;}
+.section-title{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;}
+.section-line{flex:1;height:1px;background:var(--border2);}
+
+.mc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;}
+.mc-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.mc-val{font-size:22px;font-weight:700;color:var(--text);font-family:'Courier New',monospace;}
+.mc-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+.up{color:var(--green);} .dn{color:var(--red);} .neu{color:var(--text3);}
+
+.upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:40px;text-align:center;background:var(--bg3);transition:all .15s;}
+.upload-zone.dragover{border-color:var(--blue);background:var(--blue-dim);}
+.btn-primary{padding:10px 24px;background:var(--blue-dim);border:1px solid rgba(74,144,217,.4);border-radius:var(--radius);color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-primary:hover{background:rgba(74,144,217,.2);}
+
+table.data-table{width:100%;border-collapse:collapse;font-size:16px;}
+table.data-table th{text-align:right;padding:10px 12px;color:var(--text2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border2);}
+table.data-table th:first-child{text-align:left;}
+table.data-table td{text-align:right;padding:10px 12px;font-family:'Courier New',monospace;border-bottom:1px solid var(--border);}
+table.data-table.font-aptos td{font-family:'Aptos Display','Aptos','Segoe UI',sans-serif;}
+table.data-table td:first-child{text-align:left;font-family:'Aptos Display','Aptos','Segoe UI',sans-serif;font-weight:600;}
+table.data-table tr:hover td{background:var(--bg4);}
+table.data-table tr.portfolio-row td{background:rgba(74,144,217,0.06);font-weight:700;}
+
+.sector-bar-row{display:flex;align-items:center;gap:10px;padding:7px 0;}
+.sector-name{font-size:13px;color:var(--text2);width:160px;flex-shrink:0;}
+.sector-bar-track{flex:1;height:18px;background:var(--bg4);border-radius:3px;overflow:hidden;}
+.sector-bar-fill{height:100%;border-radius:3px;}
+.sector-pct{font-family:'Courier New',monospace;font-size:13px;font-weight:700;width:55px;text-align:right;flex-shrink:0;}
+
+.insight-card{padding:14px 16px;border-radius:var(--radius);margin-bottom:10px;display:flex;gap:12px;align-items:flex-start;}
+.insight-icon{font-size:20px;flex-shrink:0;line-height:1;}
+
+select.benchmark-select{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:7px 12px;font-size:13px;cursor:pointer;}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-left">
+    <div class="nav-brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="13" cy="13" r="11" stroke="#8FAF8F" stroke-width="1.2" opacity="0.5"/>
+          <circle cx="13" cy="13" r="7" stroke="#8FAF8F" stroke-width="1.2" opacity="0.7"/>
+          <circle cx="13" cy="13" r="3" stroke="#8FAF8F" stroke-width="1.2"/>
+          <line x1="13" y1="2" x2="13" y2="24" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="2" y1="13" x2="24" y2="13" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="13" y1="13" x2="20" y2="5" stroke="#C4A46B" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="13" r="1.5" fill="#8FAF8F"/>
+          <circle cx="20" cy="5" r="1.5" fill="#C4A46B" opacity="0.9"/>
+        </svg>
+        <span style="background:linear-gradient(135deg,#E8C99A 0%,#C4A46B 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:19px;letter-spacing:.08em;font-family:Georgia,serif">Alpha Scout</span>
+      </div>
+    <a href="http://localhost:5000/home" class="nav-btn">🏠 Home</a>
+    <a href="http://localhost:5000/macro" class="nav-btn">📊 Macro Dashboard</a>
+    <a href="http://localhost:5000/etf" class="nav-btn">📈 ETF Scanner</a>
+    <a href="http://localhost:5000/etf-lab" class="nav-btn">🧪 ETF Lab</a>
+    <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a>
+    <a href="http://localhost:5000/portfolio" class="nav-btn active">📁 Portfolio Analysis</a>
+  </div>
+  <div class="nav-right">
+    <div id="todayDateH" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace"></div>
+    <div class="clock" id="clockEl">--:-- --</div>
+    <div class="market-status ms-closed" id="marketStatus">CLOSED</div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Upload section -->
+  <div id="uploadSection">
+    <div class="section-hdr"><span class="section-title">📁 Portfolio Analysis</span><div class="section-line"></div></div>
+    <div class="upload-zone" id="uploadZone">
+      <div style="font-size:32px;margin-bottom:10px">📊</div>
+      <div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:6px">Upload your holdings CSV</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:18px;line-height:1.6">
+        Export from Snowball Analytics or your broker.<br>
+        Uses: Holding, Holdings' name, Note (investment type), Shares, Cost basis, Current value, Share price, Cost per share, Country, Sector, Beta, Dividend yield, Div. received, Realized P&amp;L, Total profit, Portfolios (account)
+      </div>
+      <input type="file" id="fileInput" accept=".csv" style="display:none">
+      <button class="btn-primary" onclick="document.getElementById('fileInput').click()">⬆ Choose CSV File</button>
+      <div id="uploadStatus" style="margin-top:14px;font-size:13px"></div>
+    </div>
+  </div>
+
+  <!-- Analysis sections — hidden until data loaded -->
+  <div id="analysisSection" style="display:none">
+
+    <div class="section-hdr">
+      <span class="section-title">📁 Portfolio Analysis</span>
+      <div class="section-line"></div>
+      <button class="btn-refresh" onclick="document.getElementById('fileInput').click()">⬆ Re-upload CSV</button>
+    </div>
+    <div id="lastUpdated" style="font-size:11px;color:var(--text3);margin-bottom:16px"></div>
+
+    <!-- Current metrics -->
+    <div id="metricsGrid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-bottom:8px"></div>
+
+    <!-- Returns table -->
+    <div class="section-hdr"><span class="section-title">📈 Returns vs Benchmarks</span><div class="section-line"></div></div>
+    <div id="returnsTableWrap" style="overflow-x:auto"></div>
+
+    <!-- Growth chart -->
+    <div class="section-hdr">
+      <span class="section-title">📊 Portfolio Growth</span>
+      <div class="section-line"></div>
+      <select class="benchmark-select" id="startYearSelect" onchange="renderGrowthChart()">
+        <option value="all">Full History</option>
+      </select>
+      <select class="benchmark-select" id="benchmarkSelect" onchange="renderGrowthChart()">
+        <option value="SPY">vs S&P 500</option>
+        <option value="QQQ">vs Nasdaq 100</option>
+        <option value="DIA">vs Dow 30</option>
+      </select>
+    </div>
+    <div id="growthChartContainer" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;height:340px"></div>
+    <div id="backtestDisclaimer" style="font-size:11px;color:var(--text3);margin-top:6px;margin-bottom:16px"></div>
+
+    <!-- Portfolio breakdown — 4 tabs, each with a large doughnut chart -->
+    <div class="section-hdr"><span class="section-title">🥯 Portfolio Breakdown</span><div class="section-line"></div></div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:8px">
+      <div id="breakdownTabBar" style="display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:10px"></div>
+      <div id="breakdownTabContent"></div>
+    </div>
+
+    <!-- Holdings detail — by account + combined -->
+    <div class="section-hdr"><span class="section-title">📋 Holdings Detail</span><div class="section-line"></div></div>
+    <div id="holdingsDetail" style="margin-bottom:8px;overflow-x:auto"></div>
+
+    <!-- Risk metrics -->
+    <div class="section-hdr"><span class="section-title">⚠️ Risk Metrics — Volatility & Drawdowns</span><div class="section-line"></div></div>
+    <div id="riskTableWrap" style="overflow-x:auto"></div>
+
+    <!-- Insights -->
+    <div class="section-hdr"><span class="section-title">💡 Suggestions & Watch-Outs</span><div class="section-line"></div></div>
+    <div id="insightsPanel"></div>
+
+    <!-- Risk-Adjusted Performance -->
+    <div class="section-hdr"><span class="section-title">🎯 Risk-Adjusted Performance vs Market</span><div class="section-line"></div></div>
+    <div id="riskAdjustedGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px"></div>
+
+    <!-- Monte Carlo Simulation -->
+    <div class="section-hdr"><span class="section-title">🎲 Monte Carlo Simulation — 10-Year Projection</span><div class="section-line"></div></div>
+    <div id="monteCarloPanel" style="margin-bottom:24px"></div>
+
+  </div>
+
+  <!-- Modal for portfolio-holdings popup (Tab 1: Portfolios) -->
+  <div id="acctModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center" onclick="if(event.target===this)closeAcctModal()">
+    <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:8px;max-width:1100px;width:92%;max-height:80vh;overflow-y:auto;padding:20px 24px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+        <div id="acctModalTitle" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+        <span onclick="closeAcctModal()" style="cursor:pointer;color:var(--text3);font-size:20px;line-height:1">✕</span>
+      </div>
+      <div id="acctModalBody" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
+
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clockEl').textContent = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  document.getElementById('todayDateH').textContent = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const day = now.getDay(), mins = now.getHours()*60+now.getMinutes();
+  const open = day>=1 && day<=5 && mins>=570 && mins<960;
+  const el = document.getElementById('marketStatus');
+  el.textContent = open?'OPEN':'CLOSED';
+  el.className = 'market-status ' + (open?'ms-open':'ms-closed');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+let analysisData = null;
+
+// ── File upload handling ──
+const uploadZone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+
+fileInput.addEventListener('change', e => { if(e.target.files[0]) handleUpload(e.target.files[0]); });
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  if(e.dataTransfer.files[0]) handleUpload(e.dataTransfer.files[0]);
+});
+
+async function handleUpload(file){
+  const status = document.getElementById('uploadStatus');
+  status.innerHTML = '<span class="spinner"></span> Uploading and parsing...';
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
+    const r = await fetch(API+'/api/portfolio/upload', {method:'POST', body:fd});
+    const d = await r.json();
+    if(r.ok){
+      status.innerHTML = '<span style="color:var(--green)">✅ Loaded '+d.count+' holdings'+(d.margin?' · margin $'+d.margin.toLocaleString():'')+'</span>';
+      setTimeout(loadAnalysis, 600);
+    } else {
+      status.innerHTML = '<span style="color:var(--red)">❌ '+(d.error||'Upload failed')+'</span>';
+    }
+  }catch(e){
+    status.innerHTML = '<span style="color:var(--red)">❌ Network error: '+e.message+'</span>';
+  }
+}
+
+// ── Load analysis on page load if data already exists ──
+async function loadAnalysis(){
+  document.getElementById('uploadSection').style.display = 'none';
+  document.getElementById('analysisSection').style.display = 'none';
+
+  try{
+    const r = await fetch(API+'/api/portfolio/analysis');
+    if(!r.ok){
+      document.getElementById('uploadSection').style.display = 'block';
+      return;
+    }
+    analysisData = await r.json();
+    document.getElementById('analysisSection').style.display = 'block';
+    document.getElementById('lastUpdated').textContent = 'Last computed: ' + analysisData.timestamp + ' · ' + analysisData.holdings_count + ' holdings';
+
+    renderMetrics();
+    renderReturnsTable();
+    populateYearSelector();
+    renderGrowthChart();
+    renderBreakdownTabs();
+    renderHoldingsDetail();
+    renderRiskTable();
+    renderInsights();
+    renderRiskAdjusted();
+    renderMonteCarlo();
+  }catch(e){
+    console.error('Analysis load failed:', e);
+    document.getElementById('uploadSection').style.display = 'block';
+  }
+}
+
+function fmtPct(v, decimals=1){
+  if(v===null||v===undefined) return '—';
+  return (v>=0?'+':'')+v.toFixed(decimals)+'%';
+}
+function pctClass(v){
+  if(v===null||v===undefined) return 'neu';
+  return v>=0?'up':'dn';
+}
+function fmtMoney(v){
+  if(v===null||v===undefined) return '—';
+  return '$'+v.toLocaleString('en-US',{maximumFractionDigits:0});
+}
+function betaColor(b){
+  if(b==null) return 'var(--text)';
+  if(b < 0.95) return 'var(--green)';
+  if(b <= 1.19) return 'var(--amber)';
+  return 'var(--red)';
+}
+
+// ── Current metrics cards ──
+function renderMetrics(){
+  const d = analysisData;
+  const grid = document.getElementById('metricsGrid');
+  const r = d.returns.portfolio || {};
+  const marginCard = d.margin
+    ? `<div class="mc" style="border-left:3px solid var(--red)">
+        <div class="mc-label" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Margin Cost</span>
+          <span>
+            <span onclick="openMarginAmountEditor()" title="Edit margin balance" style="cursor:pointer;color:var(--blue);font-size:10px;text-transform:none;margin-right:6px">💰</span>
+            <span onclick="openMarginRateEditor()" title="Edit interest rate" style="cursor:pointer;color:var(--blue);font-size:10px;text-transform:none">✎</span>
+          </span>
+        </div>
+        <div class="mc-val" style="color:var(--red);font-size:18px">${fmtMoney(d.margin_annual_cost)}/yr</div>
+        <div class="mc-sub">${d.margin_annual_rate}% on ${fmtMoney(d.margin)}</div>
+      </div>`
+    : `<div class="mc">
+        <div class="mc-label" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Margin Used</span>
+          <span onclick="openMarginAmountEditor()" title="Set margin balance" style="cursor:pointer;color:var(--blue);font-size:10px;text-transform:none">✎</span>
+        </div>
+        <div class="mc-val">${fmtMoney(d.margin)}</div>
+        <div class="mc-sub">No margin</div>
+      </div>`;
+
+  const netValue = d.total_value - (d.margin || 0);
+
+  grid.innerHTML = `
+    <div class="mc"><div class="mc-label">Portfolio Value</div><div class="mc-val">${fmtMoney(netValue)}</div><div class="mc-sub">Margin: ${fmtMoney(d.margin)} &nbsp;|&nbsp; Total: ${fmtMoney(d.total_value)}</div></div>
+    ${marginCard}
+    <div class="mc"><div class="mc-label">TTM Return</div><div class="mc-val ${pctClass(r['TTM'])}">${fmtPct(r['TTM'])}</div><div class="mc-sub">Trailing 12 months</div></div>
+    <div class="mc"><div class="mc-label">1-Year Return</div><div class="mc-val ${pctClass(r['1Y'])}">${fmtPct(r['1Y'])}</div><div class="mc-sub">Portfolio (weighted)</div></div>
+    <div class="mc"><div class="mc-label">3-Year Return</div><div class="mc-val ${pctClass(r['3Y'])}">${fmtPct(r['3Y'])}</div><div class="mc-sub">${r['3Y_Ann']!=null?fmtPct(r['3Y_Ann'])+' ann.':'Cumulative'}</div></div>
+    <div class="mc"><div class="mc-label">Weighted Beta</div><div class="mc-val" style="color:${betaColor(d.weighted_beta)}">${d.weighted_beta!=null?d.weighted_beta.toFixed(2):'—'}</div><div class="mc-sub">S&P 500: 1.00</div></div>
+    <div class="mc"><div class="mc-label">Passive Income</div><div class="mc-val" style="color:var(--amber)">${d.weighted_yield!=null?d.weighted_yield.toFixed(2)+'%':'—'}</div><div class="mc-sub">Dividend / distribution yield</div></div>
+    <div class="mc"><div class="mc-label">Monthly Distrib.</div><div class="mc-val" style="color:var(--amber)">${fmtMoney(d.monthly_distributions||0)}</div><div class="mc-sub">Paid in ${d.monthly_distributions_month||'prior month'}</div></div>
+  `;
+}
+
+async function openMarginRateEditor(){
+  const current = analysisData.margin_annual_rate || 5.0;
+  const newRate = prompt('Annualized margin interest rate (%):', current);
+  if(newRate === null) return;
+  const rateNum = parseFloat(newRate);
+  if(isNaN(rateNum) || rateNum < 0){ alert('Please enter a valid number'); return; }
+  try{
+    await fetch(API+'/api/portfolio/margin-rate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rate: rateNum})
+    });
+    loadAnalysis();
+  }catch(e){ alert('Failed to save rate: '+e.message); }
+}
+
+async function openMarginAmountEditor(){
+  const current = analysisData.margin || 0;
+  const input = prompt('Current margin balance ($) — leave blank and submit to clear the override and fall back to the CSV value:', current || '');
+  if(input === null) return;
+  const trimmed = input.trim();
+  try{
+    if(trimmed === ''){
+      await fetch(API+'/api/portfolio/margin-amount', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: null})
+      });
+    } else {
+      const amountNum = parseFloat(trimmed.replace(/[$,]/g,''));
+      if(isNaN(amountNum) || amountNum < 0){ alert('Please enter a valid number'); return; }
+      await fetch(API+'/api/portfolio/margin-amount', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({amount: amountNum})
+      });
+    }
+    loadAnalysis();
+  }catch(e){ alert('Failed to save margin amount: '+e.message); }
+}
+
+// ── Returns table ──
+function renderReturnsTable(){
+  const d = analysisData;
+  const cols = ['TTM','1M','6M','1Y','3Y','5Y','3Y_Ann','5Y_Ann'];
+  const colLabels = {'TTM':'TTM','1M':'1M','6M':'6M','1Y':'1Y','3Y':'3Y','5Y':'5Y','3Y_Ann':'3Y Ann.','5Y_Ann':'5Y Ann.'};
+  const rows = [
+    {key:'portfolio', label:'Your Portfolio', cls:'portfolio-row'},
+    {key:'SPY', label:'S&P 500 (SPY)', cls:''},
+    {key:'QQQ', label:'Nasdaq 100 (QQQ)', cls:''},
+    {key:'DIA', label:'Dow 30 (DIA)', cls:''},
+  ];
+  let html = '<table class="data-table"><thead><tr><th>Benchmark</th>' + cols.map(c=>'<th>'+colLabels[c]+'</th>').join('') + '</tr></thead><tbody>';
+  rows.forEach(row => {
+    const r = d.returns[row.key] || {};
+    html += '<tr class="'+row.cls+'"><td>'+row.label+'</td>' + cols.map(c => '<td class="'+pctClass(r[c])+'">'+fmtPct(r[c])+'</td>').join('') + '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('returnsTableWrap').innerHTML = html;
+}
+
+// ── Growth chart (simple SVG line chart) ──
+function populateYearSelector(){
+  const portfolioSeries = analysisData.growth_chart.portfolio || [];
+  if(!portfolioSeries.length) return;
+  const sel = document.getElementById('startYearSelect');
+  const currentValue = sel.value;
+  const firstYear = new Date(portfolioSeries[0].date).getFullYear();
+  const lastYear = new Date(portfolioSeries[portfolioSeries.length-1].date).getFullYear();
+
+  let opts = '<option value="all">Full History</option>';
+  for(let y = lastYear; y >= firstYear; y--){
+    opts += '<option value="'+y+'">'+(y===lastYear ? y+' YTD' : 'Since '+y)+'</option>';
+  }
+  sel.innerHTML = opts;
+  // Restore previous selection if still valid, else default to "all"
+  if([...sel.options].some(o=>o.value===currentValue)) sel.value = currentValue;
+}
+
+function renderGrowthChart(){
+  const d = analysisData;
+  const benchKey = document.getElementById('benchmarkSelect').value;
+  const startYearVal = document.getElementById('startYearSelect').value;
+  let portfolioSeries = d.growth_chart.portfolio || [];
+  let benchSeriesFull = d.growth_chart[benchKey] || [];
+
+  // Filter by selected start year
+  if(startYearVal !== 'all'){
+    const cutoff = new Date(startYearVal+'-01-01');
+    portfolioSeries = portfolioSeries.filter(p => new Date(p.date) >= cutoff);
+    benchSeriesFull = benchSeriesFull.filter(p => new Date(p.date) >= cutoff);
+  }
+  const benchSeries = benchSeriesFull;
+
+  const disclaimerEl = document.getElementById('backtestDisclaimer');
+  if(disclaimerEl){
+    const startDateStr = d.growth_chart_start_date ? new Date(d.growth_chart_start_date).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : null;
+    const truncTicker = d.growth_chart_truncated_by;
+    const truncNote = (startDateStr && truncTicker)
+      ? ` The chart starts in <strong>${startDateStr}</strong> because that's when <strong>${truncTicker}</strong> — your most recently-added current holding — began trading; periods before that aren't shown since they couldn't reflect your true current mix.`
+      : '';
+    disclaimerEl.innerHTML = `📌 <strong>This is a backtest</strong> — it shows how your <em>current</em> mix of holdings and weights would have performed if held throughout the selected period, not your actual historical account value (which may have had a different composition).${truncNote}`;
+  }
+
+  const container = document.getElementById('growthChartContainer');
+  if(!portfolioSeries.length){
+    container.innerHTML = '<div class="empty-state">No growth data available for this period</div>';
+    return;
+  }
+
+  // Rebase the normalized "value" field to 100 at the filtered period's start (for benchmark comparison).
+  // The "dollars" field is already an absolute dollar amount per date — leave it untouched.
+  if(startYearVal !== 'all' && portfolioSeries.length){
+    const baseVal = portfolioSeries[0].value;
+    portfolioSeries = portfolioSeries.map(p => ({...p, value: (p.value/baseVal)*100}));
+  }
+  if(startYearVal !== 'all' && benchSeries.length){
+    const baseValB = benchSeries[0].value;
+    benchSeries.forEach(p => p.value = (p.value/baseValB)*100);
+  }
+
+  const MARGIN_L = 70, MARGIN_B = 36, MARGIN_T = 10, MARGIN_R = 16;
+  const fullW = (container.offsetWidth - 32) || 1000;
+  const fullH = 300;
+  const W = fullW - MARGIN_L - MARGIN_R;
+  const H = fullH - MARGIN_T - MARGIN_B;
+
+  // Use dollar values for portfolio Y-axis scale (more meaningful than index-100)
+  const hasDollars = portfolioSeries.length && portfolioSeries[0].dollars !== undefined;
+  const portVals = hasDollars ? portfolioSeries.map(p=>p.dollars) : portfolioSeries.map(p=>p.value);
+  // Benchmark scaled so both lines share the SAME STARTING dollar value as
+  // the portfolio — they then diverge naturally based on each one's actual
+  // performance over the period. (Previously this scaled the benchmark to
+  // match the portfolio's ENDING value, which forced both lines to always
+  // converge at the right edge regardless of real relative performance —
+  // a chart that can never actually show outperformance or underperformance
+  // isn't measuring anything.)
+  const benchScale = hasDollars && benchSeries.length ? (portVals[0] / benchSeries[0].value) : 1;
+  const benchVals = benchSeries.map(p => hasDollars ? p.value * benchScale : p.value);
+
+  const allVals = portVals.concat(benchVals);
+  const minV = Math.min(...allVals) * 0.96;
+  const maxV = Math.max(...allVals) * 1.04;
+
+  function toPath(vals, color){
+    if(!vals.length) return '';
+    const pts = vals.map((v,i) => {
+      const x = MARGIN_L + (i/(vals.length-1)) * W;
+      const y = MARGIN_T + H - ((v - minV)/(maxV-minV)) * H;
+      return x.toFixed(1)+','+y.toFixed(1);
+    });
+    return '<polyline points="'+pts.join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2"/>';
+  }
+
+  // ── Y-axis gridlines + dollar labels (5 ticks) ──
+  const yTickCount = 5;
+  let yGrid = '';
+  for(let i=0; i<=yTickCount; i++){
+    const val = minV + (maxV-minV) * (i/yTickCount);
+    const y = MARGIN_T + H - (i/yTickCount)*H;
+    const label = hasDollars ? '$'+Math.round(val).toLocaleString() : val.toFixed(0);
+    yGrid += '<line x1="'+MARGIN_L+'" y1="'+y.toFixed(1)+'" x2="'+(MARGIN_L+W)+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/>';
+    yGrid += '<text x="'+(MARGIN_L-10)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="11" fill="var(--text2)">'+label+'</text>';
+  }
+
+  // ── X-axis date labels — pick ~6 evenly spaced points, show Month 'YY ──
+  const dates = portfolioSeries.map(p => p.date);
+  const xTickCount = Math.min(6, dates.length);
+  let xLabels = '';
+  for(let i=0; i<xTickCount; i++){
+    const idx = Math.round((i/(xTickCount-1)) * (dates.length-1));
+    const x = MARGIN_L + (idx/(dates.length-1)) * W;
+    const dateObj = new Date(dates[idx]);
+    const label = dateObj.toLocaleDateString('en-US',{month:'short',year:'2-digit'});
+    xLabels += '<text x="'+x.toFixed(1)+'" y="'+(MARGIN_T+H+22)+'" text-anchor="middle" font-size="11" fill="var(--text2)">'+label+'</text>';
+    xLabels += '<line x1="'+x.toFixed(1)+'" y1="'+(MARGIN_T+H)+'" x2="'+x.toFixed(1)+'" y2="'+(MARGIN_T+H+5)+'" stroke="var(--border2)" stroke-width="1"/>';
+  }
+
+  const benchNames = {SPY:'S&P 500', QQQ:'Nasdaq 100', DIA:'Dow 30'};
+
+  // Current (last point) dollar values for both lines
+  const portCurrentVal = portVals[portVals.length-1];
+  const benchCurrentVal = benchVals[benchVals.length-1];
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:10px;font-size:12px;flex-wrap:wrap">
+      <span style="display:inline-flex;align-items:center;gap:6px">
+        <span style="width:14px;height:3px;background:#2C5F8A;display:inline-block"></span>
+        Your Portfolio: <strong style="color:var(--text);font-family:'Courier New',monospace">$${Math.round(portCurrentVal).toLocaleString()}</strong>
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:6px">
+        <span style="width:14px;height:3px;background:#EF9F27;display:inline-block"></span>
+        ${benchNames[benchKey]} equivalent: <strong style="color:var(--text2);font-family:'Courier New',monospace">$${Math.round(benchCurrentVal).toLocaleString()}</strong>
+      </span>
+      <span style="margin-left:auto;color:var(--text3)">${dates.length ? new Date(dates[0]).toLocaleDateString('en-US',{month:'short',year:'numeric'}) + ' – ' + new Date(dates[dates.length-1]).toLocaleDateString('en-US',{month:'short',year:'numeric'}) : ''}</span>
+    </div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:6px">${benchNames[benchKey]} equivalent = what your starting balance would be worth today if invested in ${benchNames[benchKey]} instead, same start date</div>
+    <svg width="100%" height="${fullH}" viewBox="0 0 ${fullW} ${fullH}" style="display:block">
+      ${yGrid}
+      ${xLabels}
+      <line x1="${MARGIN_L}" y1="${MARGIN_T}" x2="${MARGIN_L}" y2="${MARGIN_T+H}" stroke="var(--border2)" stroke-width="1"/>
+      <line x1="${MARGIN_L}" y1="${MARGIN_T+H}" x2="${MARGIN_L+W}" y2="${MARGIN_T+H}" stroke="var(--border2)" stroke-width="1"/>
+      ${toPath(benchVals, '#EF9F27')}
+      ${toPath(portVals, '#2C5F8A')}
+    </svg>
+  `;
+}
+
+// ── Pie chart builder (SVG) — used for both sector and account breakdowns ──
+// ── Larger doughnut chart builder (hollow center, used by all 4 breakdown tabs) ──
+function buildDoughnutChart(items, labelKey, colors, opts){
+  opts = opts || {};
+  const size = opts.size || 260;
+  const R = size * 0.42, CX = size/2, CY = size/2;
+  const innerR = R * 0.58; // hollow center
+  const total = items.reduce((s,i)=>s+i.value, 0);
+  let cumAngle = -90;
+
+  const toRad = a => a * Math.PI / 180;
+  const slices = items.map((item, i) => {
+    const pct = item.value / total;
+    const angle = pct * 360;
+    const startAngle = cumAngle;
+    const endAngle = cumAngle + angle;
+    cumAngle = endAngle;
+    const color = colors[i % colors.length];
+
+    if(items.length === 1){
+      return '<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'" fill="'+color+'"/>'
+           + '<circle cx="'+CX+'" cy="'+CY+'" r="'+innerR+'" fill="var(--bg3)"/>';
+    }
+    const x1o = CX + R * Math.cos(toRad(startAngle)), y1o = CY + R * Math.sin(toRad(startAngle));
+    const x2o = CX + R * Math.cos(toRad(endAngle)), y2o = CY + R * Math.sin(toRad(endAngle));
+    const x1i = CX + innerR * Math.cos(toRad(endAngle)), y1i = CY + innerR * Math.sin(toRad(endAngle));
+    const x2i = CX + innerR * Math.cos(toRad(startAngle)), y2i = CY + innerR * Math.sin(toRad(startAngle));
+    const largeArc = angle > 180 ? 1 : 0;
+    const path = 'M'+x1o.toFixed(2)+','+y1o.toFixed(2)
+      +' A'+R+','+R+' 0 '+largeArc+' 1 '+x2o.toFixed(2)+','+y2o.toFixed(2)
+      +' L'+x1i.toFixed(2)+','+y1i.toFixed(2)
+      +' A'+innerR+','+innerR+' 0 '+largeArc+' 0 '+x2i.toFixed(2)+','+y2i.toFixed(2)+' Z';
+    return '<path d="'+path+'" fill="'+color+'" stroke="var(--bg3)" stroke-width="1.5"><title>'+item[labelKey]+': '+item.pct.toFixed(1)+'%</title></path>';
+  }).join('');
+
+  const centerLabel = opts.centerLabel || '';
+  const centerSub = opts.centerSub || '';
+  const centerText = centerLabel ? (
+    '<text x="'+CX+'" y="'+(CY-6)+'" text-anchor="middle" fill="var(--text)" font-size="20" font-weight="700" font-family=\'Courier New,monospace\'>'+centerLabel+'</text>'
+    + (centerSub ? '<text x="'+CX+'" y="'+(CY+16)+'" text-anchor="middle" fill="var(--text3)" font-size="11">'+centerSub+'</text>' : '')
+  ) : '';
+
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+slices+centerText+'</svg>';
+}
+
+// ── 4-tab Portfolio Breakdown: Portfolios / Industry / Sector / Country ──
+const BREAKDOWN_TABS = [
+  {key:'portfolios', label:'📁 Portfolios'},
+  {key:'dividends',  label:'💵 Dividends'},
+  {key:'invtype',    label:'💹 Investment Type'},
+  {key:'sector',     label:'🏢 Sector'},
+  {key:'country',    label:'🌎 Country'},
+];
+let activeBreakdownTab = 'portfolios';
+const BREAKDOWN_COLORS = ['#4A90D9','#1DB87A','#EF9F27','#7F77DD','#E24B4A','#5fc49a','#D85A30','#2DD4BF','#c084fc','#fb923c'];
+
+function renderBreakdownTabs(){
+  const bar = document.getElementById('breakdownTabBar');
+  bar.innerHTML = BREAKDOWN_TABS.map(t => `
+    <button onclick="switchBreakdownTab('${t.key}')" class="nav-btn${activeBreakdownTab===t.key?' active':''}" style="cursor:pointer">${t.label}</button>
+  `).join('');
+  renderBreakdownTabContent();
+}
+
+function switchBreakdownTab(key){
+  activeBreakdownTab = key;
+  renderBreakdownTabs();
+}
+
+function renderBreakdownTabContent(){
+  const d = analysisData;
+  const container = document.getElementById('breakdownTabContent');
+  if(!container) return;
+
+  if(activeBreakdownTab === 'dividends'){
+    renderDividendsTab(d, container);
+    return;
+  }
+
+  let items, labelKey, clickable, title;
+  if(activeBreakdownTab === 'portfolios'){
+    items = d.accounts || []; labelKey = 'account'; clickable = true; title = 'By Portfolio';
+  } else if(activeBreakdownTab === 'invtype'){
+    items = d.investment_types || []; labelKey = 'type'; clickable = false; title = 'By Investment Type';
+  } else if(activeBreakdownTab === 'sector'){
+    items = d.sectors || []; labelKey = 'sector'; clickable = false; title = 'By Sector';
+  } else if(activeBreakdownTab === 'country'){
+    items = d.countries || []; labelKey = 'country'; clickable = false; title = 'By Country';
+  }
+
+  if(!items.length){
+    container.innerHTML = '<div class="empty-state">No data available</div>';
+    return;
+  }
+
+  const total = items.reduce((s,i)=>s+i.value,0);
+  const doughnut = buildDoughnutChart(items, labelKey, BREAKDOWN_COLORS, {
+    size: 260, centerLabel: fmtMoney(total), centerSub: title,
+  });
+
+  const isPortfolios = activeBreakdownTab === 'portfolios';
+  // Margin should always sit at the bottom of the Portfolios list rather
+  // than wherever its dollar value happens to sort it — it's a liability,
+  // not a portfolio, so it reads better as a trailing row, but it still
+  // needs to be laid out identically to the others, just last in order.
+  const orderedItems = isPortfolios
+    ? [...items.filter(it => it[labelKey] !== 'Margin'), ...items.filter(it => it[labelKey] === 'Margin')]
+    : items;
+
+  const legendRows = orderedItems.map((it) => {
+    const label = it[labelKey];
+    const colorIdx = items.indexOf(it); // keep color consistent with the doughnut's original slice order
+    const rowClickable = clickable && label !== 'Margin';
+    const trAttrs = rowClickable
+      ? ` onclick="openAcctModal('${label.replace(/'/g,"\\'")}')" style="cursor:pointer" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='transparent'"`
+      : '';
+    return `
+    <tr${trAttrs}>
+      <td style="padding:10px 8px;width:20px"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${BREAKDOWN_COLORS[colorIdx%BREAKDOWN_COLORS.length]}"></span></td>
+      <td style="padding:10px 8px;text-align:left;color:var(--text2);font-size:14px">${label}${rowClickable?' <span style="color:var(--blue);font-size:11px">▸ view holdings</span>':''}</td>
+      <td style="padding:10px 8px;text-align:right;color:var(--text3);font-size:14px;white-space:nowrap">${fmtMoney(it.value)}</td>
+      <td style="padding:10px 8px;text-align:right;font-weight:700;color:var(--text);font-size:14px;width:56px">${it.pct.toFixed(1)}%</td>
+    </tr>
+  `;
+  }).join('');
+
+  const legend = `<table style="width:100%;border-collapse:collapse">${legendRows}</table>`;
+
+  container.innerHTML = `
+    <div style="display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+      <div style="flex-shrink:0">${doughnut}</div>
+      <div style="flex:1;min-width:320px">${legend}</div>
+    </div>
+    ${activeBreakdownTab==='country' ? '<div style="font-size:11px;color:var(--text3);margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">"Other" includes ETFs/funds whose underlying country exposure isn\'t broken out by the source data, plus any non-US individual holdings.</div>' : ''}
+  `;
+}
+
+// ── Dividends tab: income stat cards + yield ranking chart + monthly payout history chart ──
+let dividendYieldFilter = 'active'; // 'all' | 'active' — default to Active since sold/closed positions aren't usually interesting here
+
+function setDividendYieldFilter(filter){
+  dividendYieldFilter = filter;
+  renderBreakdownTabContent();
+}
+
+function renderDividendsTab(d, container){
+  const statCard = (label, val, sub) => `
+    <div style="background:var(--bg4);border:1px solid var(--border);border-radius:6px;padding:14px 16px;flex:1;min-width:130px">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${label}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--amber)">${val}</div>
+      ${sub ? '<div style="font-size:11px;color:var(--text3);margin-top:4px">'+sub+'</div>' : ''}
+    </div>
+  `;
+
+  const statsRow = `
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px">
+      ${statCard('Yield', d.weighted_yield!=null ? d.weighted_yield.toFixed(2)+'%' : '—', 'Portfolio-weighted')}
+      ${statCard('Annual Income', fmtMoney(d.annual_income||0), 'Trailing 12 months, actual')}
+      ${statCard('Monthly Income', fmtMoney(d.monthly_distributions||0), 'Paid in '+(d.monthly_distributions_month||'prior month'))}
+      ${statCard('Daily Income', fmtMoney(d.daily_income||0), 'Annual ÷ 365')}
+    </div>
+  `;
+
+  // ── Chart 1: Current yield, highest to lowest, filterable by ETFs/funds vs individual equities ──
+  // (Yields above 175% are already excluded server-side as data errors.)
+  let yields = (d.holding_yields || []).filter(h => h.yield > 0);
+  if(dividendYieldFilter === 'active') yields = yields.filter(h => h.is_active);
+
+  const filterBar = `
+    <div style="display:flex;gap:6px;margin-bottom:12px">
+      <button onclick="setDividendYieldFilter('all')" class="nav-btn${dividendYieldFilter==='all'?' active':''}" style="cursor:pointer;font-size:11px;padding:4px 10px">All Investments</button>
+      <button onclick="setDividendYieldFilter('active')" class="nav-btn${dividendYieldFilter==='active'?' active':''}" style="cursor:pointer;font-size:11px;padding:4px 10px">Active Shares Only</button>
+    </div>
+  `;
+
+  let yieldChart = '<div class="empty-state">No yield data for this filter</div>';
+  if(yields.length){
+    const maxY = Math.max(...yields.map(h=>h.yield));
+    const barW = 720, rowH = 22, gap = 4;
+    const chartH = yields.length * (rowH+gap);
+    const labelW = 70;
+    const barsHtml = yields.map((h,i) => {
+      const y = i*(rowH+gap);
+      const w = Math.max(2, (h.yield/maxY) * (barW-labelW-60));
+      const color = h.yield >= 15 ? '#E24B4A' : h.yield >= 7 ? '#EF9F27' : '#1DB87A';
+      return `
+        <text x="${labelW-8}" y="${y+rowH/2+4}" text-anchor="end" font-size="11" fill="var(--text2)" font-weight="700">${h.t}</text>
+        <rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="${rowH}" rx="3" fill="${color}"/>
+        <text x="${labelW+w+8}" y="${y+rowH/2+4}" font-size="11" fill="var(--text)">${h.yield.toFixed(1)}%</text>
+      `;
+    }).join('');
+    yieldChart = `
+      <div style="overflow-y:auto;max-height:420px">
+        <svg width="100%" height="${chartH}" viewBox="0 0 ${barW} ${chartH}">${barsHtml}</svg>
+      </div>
+    `;
+  }
+
+  // ── Chart 2: Total dividends received per month, trailing 12 months, with $ value labels above each bar ──
+  const history = d.monthly_payout_history || [];
+  let payoutChart = '<div class="empty-state">No payout history available</div>';
+  if(history.length){
+    const maxAmt = Math.max(...history.map(h=>h.amount), 1);
+    const W = 720, H = 240, padL = 60, padR = 10, padT = 26, padB = 30;
+    const plotW = W-padL-padR, plotH = H-padT-padB;
+    const barGap = 8;
+    const barW2 = (plotW / history.length) - barGap;
+    const bars = history.map((h,i) => {
+      const x = padL + i*(plotW/history.length) + barGap/2;
+      const barH = maxAmt ? (h.amount/maxAmt) * plotH : 0;
+      const y = padT + plotH - barH;
+      const monthLabel = new Date(h.month+'-01').toLocaleDateString('en-US',{month:'short'});
+      const valueLabel = h.amount > 0 ? '$'+Math.round(h.amount).toLocaleString() : '';
+      return `
+        <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW2.toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="var(--amber)"><title>${h.month}: ${fmtMoney(h.amount)}</title></rect>
+        <text x="${(x+barW2/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="10" fill="var(--text2)" font-weight="700">${valueLabel}</text>
+        <text x="${(x+barW2/2).toFixed(1)}" y="${H-padB+16}" text-anchor="middle" font-size="10" fill="var(--text3)">${monthLabel}</text>
+      `;
+    }).join('');
+    const yTicks = [0,0.5,1].map(f => maxAmt*f);
+    const gridlines = yTicks.map(v => {
+      const y = padT + plotH - (v/maxAmt)*plotH;
+      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>
+              <text x="${padL-8}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="var(--text3)">${fmtMoney(v)}</text>`;
+    }).join('');
+    payoutChart = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}">${gridlines}${bars}</svg>`;
+  }
+
+  container.innerHTML = `
+    ${statsRow}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">📊 Current Yield by Holding (Highest → Lowest)</div>
+        ${filterBar}
+        ${yieldChart}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">📅 Monthly Payout History (Trailing 12 Months)</div>
+        ${payoutChart}
+        <div style="font-size:11px;color:var(--text3);margin-top:10px">Based on actual dividend payment dates and amounts received, using current share counts.</div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Tab 1 popup: click a portfolio slice to see its holdings ──
+function openAcctModal(accountLabel){
+  const d = analysisData;
+  const detail = d.holdings_detail || [];
+  const rows = detail.filter(h => (h.accounts||[]).includes(accountLabel))
+    .map(h => ({...h, splitValue: (h.account_values && h.account_values[accountLabel] != null) ? h.account_values[accountLabel] : h.value}))
+    .sort((a,b)=>b.splitValue-a.splitValue);
+  const total = rows.reduce((s,r)=>s+(r.splitValue||0),0);
+
+  document.getElementById('acctModalTitle').textContent = `${accountLabel} — ${fmtMoney(total)} · ${rows.length} holding${rows.length!==1?'s':''}`;
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td style="text-align:left;font-weight:700">${r.t}</td>
+      <td style="text-align:left;color:var(--text2)">${r.n}${r.accounts.length>1?' <span style="color:var(--text3);font-size:10px">(split '+r.accounts.length+' ways)</span>':''}</td>
+      <td>${r.shares ? r.shares.toLocaleString('en-US',{maximumFractionDigits:4}) : '—'}</td>
+      <td>${r.cost_basis!=null ? fmtMoney(r.cost_basis) : '—'}</td>
+      <td>${fmtMoney(r.splitValue)}</td>
+      <td>${r.share_price!=null ? '$'+r.share_price.toFixed(2) : '—'}</td>
+      <td>${r.cost_per_share!=null ? '$'+r.cost_per_share.toFixed(2) : '—'}</td>
+      <td class="${r.realized_pl!=null?pctClass(r.realized_pl):'neu'}">${r.realized_pl!=null ? (r.realized_pl>=0?'+':'')+fmtMoney(r.realized_pl) : '—'}</td>
+      <td>${r.div_received!=null ? fmtMoney(r.div_received) : '—'}</td>
+      <td class="${r.total_profit!=null?pctClass(r.total_profit):'neu'}">${r.total_profit!=null ? (r.total_profit>=0?'+':'')+fmtMoney(r.total_profit) : '—'}</td>
+    </tr>
+  `).join('');
+
+  document.getElementById('acctModalBody').innerHTML = `
+    <table class="data-table font-aptos">
+      <thead><tr>
+        <th style="text-align:left">Ticker</th>
+        <th style="text-align:left">Name</th>
+        <th>Shares</th>
+        <th>Cost Basis</th>
+        <th>Current Value</th>
+        <th>Share Price</th>
+        <th>Cost / Share</th>
+        <th>Realized P/L</th>
+        <th>Div Received</th>
+        <th>Total Profit</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('acctModalOverlay').style.display = 'flex';
+}
+
+function closeAcctModal(){
+  document.getElementById('acctModalOverlay').style.display = 'none';
+}
+
+// ── Risk metrics table ──
+function renderRiskTable(){
+  const d = analysisData;
+  const rows = [
+    {key:'portfolio', label:'Your Portfolio', cls:'portfolio-row'},
+    {key:'SPY', label:'S&P 500 (SPY)', cls:''},
+    {key:'QQQ', label:'Nasdaq 100 (QQQ)', cls:''},
+    {key:'DIA', label:'Dow 30 (DIA)', cls:''},
+  ];
+  let html = '<table class="data-table"><thead><tr><th>Benchmark</th><th>Max DD 1Y</th><th>Max DD 3Y</th><th>Max DD 5Y</th><th>Std Dev 1Y</th><th>Std Dev 3Y</th><th>Std Dev 5Y</th></tr></thead><tbody>';
+  rows.forEach(row => {
+    const r = d.risk[row.key] || {};
+    html += '<tr class="'+row.cls+'"><td>'+row.label+'</td>'
+      + '<td class="dn">'+(r.max_dd_1y!=null?r.max_dd_1y.toFixed(1)+'%':'—')+'</td>'
+      + '<td class="dn">'+(r.max_dd_3y!=null?r.max_dd_3y.toFixed(1)+'%':'—')+'</td>'
+      + '<td class="dn">'+(r.max_dd_5y!=null?r.max_dd_5y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_1y!=null?r.std_1y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_3y!=null?r.std_3y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_5y!=null?r.std_5y.toFixed(1)+'%':'—')+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('riskTableWrap').innerHTML = html;
+}
+
+// ── Risk-Adjusted Performance vs Market ──
+function signalCard(label, val, displayVal, sub, signal, definition){
+  // signal: 'green' | 'amber' | 'red' | 'neutral'
+  const colors = {
+    green:  {c:'var(--green)', bg:'rgba(29,184,122,0.08)',  border:'rgba(29,184,122,0.35)'},
+    amber:  {c:'var(--amber)', bg:'rgba(239,159,39,0.08)',  border:'rgba(239,159,39,0.35)'},
+    red:    {c:'var(--red)',   bg:'rgba(226,75,74,0.08)',   border:'rgba(226,75,74,0.35)'},
+    neutral:{c:'var(--text3)', bg:'var(--bg4)',             border:'var(--border)'},
+  };
+  const s = colors[signal] || colors.neutral;
+  return `<div class="mc" style="border-top:3px solid ${s.c};background:${s.bg}">
+    <div class="mc-label">${label}</div>
+    <div class="mc-val" style="color:${s.c};font-size:20px">${displayVal}</div>
+    <div class="mc-sub">${sub}</div>
+    ${definition ? '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);line-height:1.4">'+definition+'</div>' : ''}
+  </div>`;
+}
+
+function renderRiskAdjusted(){
+  const d = analysisData;
+  const ra = d.risk_adjusted || {};
+  const grid = document.getElementById('riskAdjustedGrid');
+  if(!grid) return;
+
+  // Helper: describe a gap in magnitude language, from the portfolio's perspective
+  function magnitudeNote(diff, unit, goodWhenHigher=true){
+    const absDiff = Math.abs(diff);
+    const dir = (diff > 0) === goodWhenHigher ? 'better' : 'worse';
+    let mag;
+    if(unit === 'ratio'){
+      mag = absDiff > 0.5 ? 'significantly' : absDiff > 0.15 ? 'slightly' : null;
+    } else { // percent
+      mag = absDiff > 5 ? 'significantly' : absDiff > 1.5 ? 'slightly' : null;
+    }
+    if(mag === null) return 'The portfolio performed about the same as the market on this measure.';
+    return 'The portfolio scored '+mag+' '+dir+' on this measure than the S&P 500.';
+  }
+
+  let html = '';
+
+  // 1. Portfolio P/E vs Market (SPY) P/E — absolute range thresholds, not relative to SPY
+  if(ra.portfolio_pe != null && ra.spy_pe != null){
+    const pe = ra.portfolio_pe;
+    const sig = pe <= 25 ? 'green' : pe <= 33 ? 'amber' : 'red';
+    let note;
+    if(pe > 33) note = 'This is a richly valued portfolio — paying a significant premium for earnings.';
+    else if(pe > 25) note = 'This is a moderately rich valuation — paying up somewhat for earnings.';
+    else note = 'This is a reasonable valuation range relative to earnings.';
+    html += signalCard('Portfolio P/E', ra.portfolio_pe, ra.portfolio_pe.toFixed(1)+'x', 'S&P 500: '+ra.spy_pe.toFixed(1)+'x · '+note, sig, 'This measures how expensive your holdings are relative to their earnings — a way to gauge whether you\'re paying a premium for growth or getting in at a reasonable price.');
+  } else {
+    html += signalCard('Portfolio P/E', null, '—', 'Insufficient equity holdings with P/E data', 'neutral', 'This measures how expensive your holdings are relative to their earnings — a way to gauge whether you\'re paying a premium for growth or getting in at a reasonable price.');
+  }
+
+  // 2. TWR — Time-Weighted Return (1Y) vs SPY
+  if(ra.twr_1y != null && ra.spy_twr_1y != null){
+    const diff = ra.twr_1y - ra.spy_twr_1y;
+    const sig = diff > 2 ? 'green' : diff < -2 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'percent', true);
+    html += signalCard('Portfolio TWR (1Y)', ra.twr_1y, (ra.twr_1y>=0?'+':'')+ra.twr_1y.toFixed(1)+'%', 'S&P 500: '+(ra.spy_twr_1y>=0?'+':'')+ra.spy_twr_1y.toFixed(1)+'% · '+note, sig, 'This measures your actual investment return over the past year, independent of when you added or withdrew cash — the cleanest read on how your holdings themselves performed.');
+  } else {
+    html += signalCard('Portfolio TWR (1Y)', null, '—', 'Time-weighted return unavailable', 'neutral', 'This measures your actual investment return over the past year, independent of when you added or withdrew cash — the cleanest read on how your holdings themselves performed.');
+  }
+
+  // 3. Sortino Ratio vs SPY — colored relative to S&P, since "good" is relative not absolute
+  if(ra.sortino_1y != null && ra.spy_sortino_1y != null){
+    const diff = ra.sortino_1y - ra.spy_sortino_1y;
+    const sig = diff > 0.15 ? 'green' : diff < -0.15 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'ratio', true);
+    html += signalCard('Sortino Ratio', ra.sortino_1y, ra.sortino_1y.toFixed(2), 'S&P 500: '+ra.spy_sortino_1y.toFixed(2)+' · '+note, sig, 'This measures how much return you\'re getting for every unit of downside risk you take on — it only penalizes the bad days, not the good ones, so it\'s a good read on how well-compensated you are for the risk of losses specifically.');
+  } else {
+    html += signalCard('Sortino Ratio', null, '—', 'Insufficient downside data', 'neutral', 'This measures how much return you\'re getting for every unit of downside risk you take on — it only penalizes the bad days, not the good ones, so it\'s a good read on how well-compensated you are for the risk of losses specifically.');
+  }
+
+  // 4. Sharpe Ratio vs SPY — colored relative to S&P, same reasoning as Sortino
+  if(ra.sharpe_1y != null && ra.spy_sharpe_1y != null){
+    const diff = ra.sharpe_1y - ra.spy_sharpe_1y;
+    const sig = diff > 0.15 ? 'green' : diff < -0.15 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'ratio', true);
+    html += signalCard('Sharpe Ratio', ra.sharpe_1y, ra.sharpe_1y.toFixed(2), 'S&P 500: '+ra.spy_sharpe_1y.toFixed(2)+' · '+note, sig, 'This measures how much return you\'re getting for every unit of total volatility — including both ups and downs — so it tells you whether you\'re being fairly rewarded for how bumpy the ride is.');
+  } else {
+    html += signalCard('Sharpe Ratio', null, '—', 'Insufficient return data', 'neutral', 'This measures how much return you\'re getting for every unit of total volatility — including both ups and downs — so it tells you whether you\'re being fairly rewarded for how bumpy the ride is.');
+  }
+
+  // 5. Beta vs SPY (volatility) — same color thresholds as Weighted Beta card
+  if(ra.beta_vs_spy != null){
+    const b = ra.beta_vs_spy;
+    const sig = b < 0.95 ? 'green' : b <= 1.19 ? 'amber' : 'red';
+    let note;
+    if(b > 1.2) note = 'The portfolio moves significantly more than the market in both directions.';
+    else if(b > 1.0) note = 'The portfolio moves slightly more than the market.';
+    else if(b < 0.8) note = 'The portfolio is defensive — it moves less than the market.';
+    else note = 'The portfolio moves roughly in line with the market.';
+    html += signalCard('Beta (Volatility)', b, b.toFixed(2), 'S&P 500: 1.00 · '+note, sig, 'This measures how much your portfolio tends to swing relative to the overall market — helpful for understanding what kind of moves to expect when the market has a big up or down day.');
+  } else {
+    html += signalCard('Beta (Volatility)', null, '—', 'Insufficient correlation data', 'neutral', 'This measures how much your portfolio tends to swing relative to the overall market — helpful for understanding what kind of moves to expect when the market has a big up or down day.');
+  }
+
+  grid.innerHTML = html;
+}
+
+// ── Monte Carlo simulation — fan chart of bootstrapped 10-year outcomes ──
+function renderMonteCarlo(){
+  const d = analysisData;
+  const mc = d.monte_carlo;
+  const panel = document.getElementById('monteCarloPanel');
+  if(!panel) return;
+
+  if(!mc){
+    panel.innerHTML = '<div class="empty-state">Not enough price history to run a simulation yet (needs at least ~3 months of holdings data).</div>';
+    return;
+  }
+
+  // ── Fan chart: p10/p25/median/p75/p90 bands over 10 years ──
+  const W = 720, H = 320, padL = 70, padR = 20, padT = 20, padB = 36;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const series = mc.yearly_series;
+  const allVals = series.flatMap(s => [s.p10, s.p90]);
+  const minV = Math.min(mc.starting_value, ...allVals);
+  const maxV = Math.max(...allVals);
+  const range = maxV - minV || 1;
+
+  const xAt = yr => padL + (yr / mc.years) * plotW;
+  const yAt = val => padT + plotH - ((val - minV) / range) * plotH;
+
+  const pathFor = key => {
+    const pts = [{year:0, val: mc.starting_value}, ...series.map(s=>({year:s.year, val:s[key]}))];
+    return pts.map((p,i) => (i===0?'M':'L')+xAt(p.year).toFixed(1)+','+yAt(p.val).toFixed(1)).join(' ');
+  };
+  const bandPath = (lowKey, highKey) => {
+    const lowPts = [{year:0, val: mc.starting_value}, ...series.map(s=>({year:s.year, val:s[lowKey]}))];
+    const highPts = [{year:0, val: mc.starting_value}, ...series.map(s=>({year:s.year, val:s[highKey]}))];
+    const fwd = lowPts.map((p,i) => (i===0?'M':'L')+xAt(p.year).toFixed(1)+','+yAt(p.val).toFixed(1)).join(' ');
+    const back = highPts.slice().reverse().map(p => 'L'+xAt(p.year).toFixed(1)+','+yAt(p.val).toFixed(1)).join(' ');
+    return fwd+' '+back+' Z';
+  };
+
+  // Y-axis gridlines (5 ticks)
+  const yTicks = [0,1,2,3,4].map(i => minV + (range * i/4));
+  const gridlines = yTicks.map(v => {
+    const y = yAt(v);
+    return '<line x1="'+padL+'" y1="'+y.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+y.toFixed(1)+'" stroke="var(--border)" stroke-width="1"/>'
+      + '<text x="'+(padL-8)+'" y="'+(y+4).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--text3)">'+fmtMoney(v)+'</text>';
+  }).join('');
+
+  // X-axis labels (every year, or every other if 10 years is too cramped)
+  const xLabels = series.map(s => {
+    const x = xAt(s.year);
+    return '<text x="'+x.toFixed(1)+'" y="'+(H-padB+18)+'" text-anchor="middle" font-size="10" fill="var(--text3)">Yr '+s.year+'</text>';
+  }).join('');
+
+  const svg = `
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:100%">
+      ${gridlines}
+      <path d="${bandPath('p10','p90')}" fill="var(--blue)" opacity="0.08"/>
+      <path d="${bandPath('p25','p75')}" fill="var(--blue)" opacity="0.16"/>
+      <path d="${pathFor('p50')}" fill="none" stroke="var(--blue)" stroke-width="2.5"/>
+      <path d="${pathFor('p10')}" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+      <path d="${pathFor('p90')}" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+      <line x1="${padL}" y1="${yAt(mc.starting_value).toFixed(1)}" x2="${W-padR}" y2="${yAt(mc.starting_value).toFixed(1)}" stroke="var(--text3)" stroke-width="1" stroke-dasharray="2,4"/>
+      ${xLabels}
+    </svg>
+  `;
+
+  const h1 = mc.horizons['1y'], h5 = mc.horizons['5y'], h10 = mc.horizons['10y'];
+  const horizonRow = (label, h) => h ? `
+    <div style="text-align:center;flex:1">
+      <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">${label}</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)">${fmtMoney(h.p50)}</div>
+      <div style="font-size:11px;color:var(--text3)">${fmtMoney(h.p10)} – ${fmtMoney(h.p90)} (80% range)</div>
+    </div>
+  ` : '';
+
+  panel.innerHTML = `
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px">
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:18px">
+        ${horizonRow('1 Year', h1)}
+        ${horizonRow('5 Years', h5)}
+        ${horizonRow('10 Years', h10)}
+      </div>
+      <div style="overflow-x:auto;margin-bottom:14px">${svg}</div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:var(--text2);padding-top:12px;border-top:1px solid var(--border)">
+        <div><span style="color:var(--text3)">Starting value:</span> <strong style="color:var(--text)">${fmtMoney(mc.starting_value)}</strong></div>
+        <div><span style="color:var(--text3)">Implied annual return:</span> <strong class="${pctClass(mc.implied_annual_return)}">${fmtPct(mc.implied_annual_return)}</strong></div>
+        <div><span style="color:var(--text3)">Implied annual volatility:</span> <strong style="color:var(--text)">${mc.implied_annual_vol.toFixed(1)}%</strong></div>
+        <div><span style="color:var(--text3)">Chance of being below today's value in 10y:</span> <strong class="${mc.prob_below_start_10y>30?'dn':'up'}">${mc.prob_below_start_10y.toFixed(1)}%</strong></div>
+        <div><span style="color:var(--text3)">Chance of doubling in 10y:</span> <strong class="up">${mc.prob_double_10y.toFixed(1)}%</strong></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:12px">
+        ${mc.n_simulations.toLocaleString()} simulated paths, each randomly resampling daily returns from this portfolio's own ${mc.historical_days_used.toLocaleString()}-day price history (bootstrap method) — reflects the actual volatility and behavior of your specific holdings, not a generic market assumption. Shaded bands show the 10th–90th (light) and 25th–75th (darker) percentile range of outcomes; the solid line is the median.
+      </div>
+    </div>
+  `;
+}
+
+// ── Holdings detail readout — by account, then combined ──
+let holdingsSortKey = 'value';
+let holdingsSortDir = 'desc'; // 'asc' or 'desc'
+
+const HOLDINGS_SORT_FIELDS = {
+  value: r => r.value,
+  share_price: r => r.share_price,
+  realized_pl: r => r.realized_pl,
+  div_received: r => r.div_received,
+  total_profit: r => r.total_profit,
+  accounts: r => ([...new Set(r.accounts||[])].join(', ')).toLowerCase(),
+};
+
+function sortHoldings(key){
+  if(holdingsSortKey === key){
+    holdingsSortDir = holdingsSortDir === 'desc' ? 'asc' : 'desc';
+  } else {
+    holdingsSortKey = key;
+    holdingsSortDir = 'desc';
+  }
+  renderHoldingsDetail();
+}
+
+function renderHoldingsDetail(){
+  const d = analysisData;
+  const detail = d.holdings_detail || [];
+  const container = document.getElementById('holdingsDetail');
+  if(!container) return;
+  if(!detail.length){
+    container.innerHTML = '<div class="empty-state">No holdings detail available</div>';
+    return;
+  }
+
+  const getter = HOLDINGS_SORT_FIELDS[holdingsSortKey] || HOLDINGS_SORT_FIELDS.value;
+  const dirMult = holdingsSortDir === 'asc' ? 1 : -1;
+  const rows = [...detail].sort((a,b) => {
+    let av = getter(a), bv = getter(b);
+    // Nulls always sort last regardless of direction, so missing data
+    // doesn't jump to the top when sorting ascending.
+    if(av == null && bv == null) return 0;
+    if(av == null) return 1;
+    if(bv == null) return -1;
+    if(typeof av === 'string') return av.localeCompare(bv) * dirMult;
+    return (av - bv) * dirMult;
+  });
+  const total = rows.reduce((s,r)=>s+(r.value||0),0);
+
+  const rowsHtml = rows.map(r => `
+    <tr>
+      <td style="text-align:left;font-weight:700">${r.t}</td>
+      <td style="text-align:left;color:var(--text2)">${r.n}</td>
+      <td>${r.shares ? r.shares.toLocaleString('en-US',{maximumFractionDigits:4}) : '—'}</td>
+      <td>${r.cost_basis!=null ? fmtMoney(r.cost_basis) : '—'}</td>
+      <td>${fmtMoney(r.value)}</td>
+      <td>${r.share_price!=null ? '$'+r.share_price.toFixed(2) : '—'}</td>
+      <td>${r.cost_per_share!=null ? '$'+r.cost_per_share.toFixed(2) : '—'}</td>
+      <td class="${r.realized_pl!=null?pctClass(r.realized_pl):'neu'}">${r.realized_pl!=null ? (r.realized_pl>=0?'+':'')+fmtMoney(r.realized_pl) : '—'}</td>
+      <td>${r.div_received!=null ? fmtMoney(r.div_received) : '—'}</td>
+      <td class="${r.total_profit!=null?pctClass(r.total_profit):'neu'}">${r.total_profit!=null ? (r.total_profit>=0?'+':'')+fmtMoney(r.total_profit) : '—'}</td>
+      <td style="text-align:left;color:var(--text3);font-size:12px">${[...new Set(r.accounts||[])].join(', ')}</td>
+    </tr>
+  `).join('');
+
+  // Sortable header helper — shows ▲/▼ on whichever column is active
+  function sortableHeader(label, key, align){
+    const isActive = holdingsSortKey === key;
+    const arrow = isActive ? (holdingsSortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    const alignStyle = align === 'left' ? 'text-align:left;' : '';
+    return `<th style="${alignStyle}cursor:pointer;user-select:none;${isActive?'color:var(--blue)':''}" onclick="sortHoldings('${key}')" title="Click to sort">${label}${arrow}</th>`;
+  }
+
+  container.innerHTML = `
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--text)">📊 All Holdings — Combined</div>
+        <div style="font-size:13px;color:var(--text2)">${fmtMoney(total)} · ${rows.length} holding${rows.length!==1?'s':''}</div>
+      </div>
+      <table class="data-table font-aptos">
+        <thead><tr>
+          <th style="text-align:left">Ticker</th>
+          <th style="text-align:left">Name</th>
+          <th>Shares</th>
+          <th>Cost Basis</th>
+          ${sortableHeader('Current Value', 'value')}
+          ${sortableHeader('Share Price', 'share_price')}
+          <th>Cost / Share</th>
+          ${sortableHeader('Realized P/L', 'realized_pl')}
+          ${sortableHeader('Div Received', 'div_received')}
+          ${sortableHeader('Total Profit', 'total_profit')}
+          ${sortableHeader('Account(s)', 'accounts', 'left')}
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderInsights(){
+  const d = analysisData;
+  const panel = document.getElementById('insightsPanel');
+  const insights = [];
+
+  // Margin check
+  if(d.margin > 0){
+    const marginPct = (d.margin / d.total_value) * 100;
+    if(marginPct > 15){
+      insights.push({icon:'⚠️', color:'var(--red)', bg:'rgba(226,75,74,0.08)', border:'rgba(226,75,74,0.3)',
+        text:'Margin is '+marginPct.toFixed(1)+'% of total portfolio value ($'+d.margin.toLocaleString()+'). This amplifies both gains and losses — a market pullback hits a leveraged account harder and faster than an unleveraged one.'});
+    }
+    if(d.margin_annual_cost > 0){
+      insights.push({icon:'💸', color:'var(--red)', bg:'rgba(226,75,74,0.08)', border:'rgba(226,75,74,0.3)',
+        text:'Margin interest is costing $'+d.margin_annual_cost.toLocaleString()+'/year ('+d.margin_annual_rate+'% on $'+d.margin.toLocaleString()+'). Your brokerage income sleeve needs to clear this hurdle before any of that leverage is actually profitable — yield alone isn\'t enough if NAV erodes faster than the spread between distribution yield and borrowing cost.'});
+    }
+  }
+
+  // Beta check
+  if(d.weighted_beta != null){
+    if(d.weighted_beta > 1.15){
+      insights.push({icon:'📈', color:'var(--amber)', bg:'rgba(239,159,39,0.08)', border:'rgba(239,159,39,0.3)',
+        text:'Portfolio beta of '+d.weighted_beta.toFixed(2)+' means it moves more than the market in both directions. In a 10% market drop, expect a larger move on the downside too.'});
+    } else if(d.weighted_beta < 0.7){
+      insights.push({icon:'🛡️', color:'var(--blue)', bg:'rgba(74,144,217,0.08)', border:'rgba(74,144,217,0.3)',
+        text:'Portfolio beta of '+d.weighted_beta.toFixed(2)+' suggests a defensive tilt — likely to lag in strong bull markets but cushion better in selloffs.'});
+    }
+  }
+
+  // Sector concentration
+  if(d.sectors && d.sectors.length){
+    const top = d.sectors[0];
+    if(top.pct > 40){
+      insights.push({icon:'🎯', color:'var(--red)', bg:'rgba(226,75,74,0.08)', border:'rgba(226,75,74,0.3)',
+        text:top.sector+' makes up '+top.pct.toFixed(1)+'% of the portfolio — a meaningful concentration. If something specific to that sector goes wrong, it disproportionately impacts the whole portfolio.'});
+    }
+  }
+
+  // Drawdown vs benchmark
+  const pRisk = d.risk.portfolio || {};
+  const spyRisk = d.risk.SPY || {};
+  if(pRisk.max_dd_1y != null && spyRisk.max_dd_1y != null){
+    if(pRisk.max_dd_1y < spyRisk.max_dd_1y - 5){
+      insights.push({icon:'📉', color:'var(--amber)', bg:'rgba(239,159,39,0.08)', border:'rgba(239,159,39,0.3)',
+        text:'Your 1-year max drawdown ('+pRisk.max_dd_1y.toFixed(1)+'%) was deeper than the S&P 500 ('+spyRisk.max_dd_1y.toFixed(1)+'%). Worth checking which holdings drove that and whether it matches your risk tolerance.'});
+    } else if(pRisk.max_dd_1y > spyRisk.max_dd_1y + 5){
+      insights.push({icon:'✅', color:'var(--green)', bg:'rgba(29,184,122,0.08)', border:'rgba(29,184,122,0.3)',
+        text:'Your portfolio drew down less than the S&P 500 over the past year ('+pRisk.max_dd_1y.toFixed(1)+'% vs '+spyRisk.max_dd_1y.toFixed(1)+'%) — your diversification or defensive holdings provided real cushioning.'});
+    }
+  }
+
+  // Yield check
+  if(d.weighted_yield != null && d.weighted_yield > 10){
+    insights.push({icon:'💰', color:'var(--amber)', bg:'rgba(239,159,39,0.08)', border:'rgba(239,159,39,0.3)',
+      text:'Weighted yield of '+d.weighted_yield.toFixed(1)+'% is unusually high for a broad portfolio — likely driven by options-income or covered-call ETFs. These often show NAV erosion in flat/down markets even while distributions continue. Worth checking whether yield is coming from organic dividends or option premium.'});
+  }
+
+  if(!insights.length){
+    insights.push({icon:'✅', color:'var(--green)', bg:'rgba(29,184,122,0.08)', border:'rgba(29,184,122,0.3)',
+      text:'No major red flags detected in the current configuration. Keep monitoring sector concentration and margin levels as the portfolio evolves.'});
+  }
+
+  panel.innerHTML = insights.map(ins => `
+    <div class="insight-card" style="background:${ins.bg};border:1px solid ${ins.border}">
+      <div class="insight-icon">${ins.icon}</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.6">${ins.text}</div>
+    </div>
+  `).join('');
+}
+
+// ── Init ──
+loadAnalysis();
+</script>
+</body>
+</html>

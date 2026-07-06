@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Macro Health Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1117;--bg2:#181c25;--bg3:#1e2330;--bg4:#232837;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#e8eaf0;--text2:#9098a8;--text3:#5a6272;
+  --green:#1DB87A;--green-dim:rgba(29,184,122,0.12);
+  --red:#E24B4A;--red-dim:rgba(226,75,74,0.12);
+  --amber:#EF9F27;--amber-dim:rgba(239,159,39,0.12);
+  --blue:#4A90D9;--blue-dim:rgba(74,144,217,0.12);
+  --purple:#7F77DD;--purple-dim:rgba(127,119,221,0.12);
+  --teal:#1D9E75;--teal-dim:rgba(29,158,117,0.12);
+  --radius:6px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Nunito Sans','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;}
+.page{max-width:1440px;margin:0 auto;padding:20px 24px 40px;}
+
+/* Header */
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+.hdr-left h1{font-size:17px;font-weight:600;letter-spacing:.04em;}
+.hdr-left .sub{font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-top:4px;}
+.hdr-right{display:flex;gap:8px;align-items:center;}
+.btn{padding:6px 14px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg2);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s;}
+.btn:hover{background:var(--bg3);color:var(--text);}
+.btn-primary{background:var(--blue-dim);border-color:rgba(74,144,217,.4);color:var(--blue);}
+.btn-scanner{background:var(--green-dim);border-color:rgba(29,184,122,.4);color:var(--green);}
+.nav-link{font-size:11px;color:var(--text3);text-decoration:none;padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius);}
+.nav-link:hover{color:var(--text);border-color:var(--border2);}
+
+/* Loading */
+.pgwrap{height:2px;background:var(--bg3);border-radius:1px;margin-bottom:14px;overflow:hidden;}
+.pgbar{height:2px;background:var(--blue);border-radius:1px;transition:width .3s;width:0%;}
+.status{padding:8px 14px;border-radius:var(--radius);font-size:12px;display:inline-flex;align-items:center;gap:8px;margin-bottom:16px;border:1px solid var(--border);}
+.status.loading{background:var(--bg2);color:var(--text2);}
+.status.ok{background:var(--green-dim);color:var(--green);border-color:rgba(29,184,122,.25);}
+.status.warn{background:var(--amber-dim);color:var(--amber);border-color:rgba(239,159,39,.3);}
+.status .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--bg3);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-right:6px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* FRED notice */
+.fred-notice{background:var(--amber-dim);border:1px solid rgba(239,159,39,.3);border-radius:var(--radius);padding:10px 16px;margin-bottom:16px;font-size:12px;color:var(--amber);display:none;}
+.fred-notice.show{display:block;}
+.fred-notice a{color:var(--amber);text-decoration:underline;}
+
+/* Narrative */
+.narrative-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;position:relative;}
+.narrative-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:8px;}
+.narrative-text{font-size:14px;color:var(--text2);line-height:1.75;}
+.narrative-ts{font-size:10px;color:var(--text3);margin-top:8px;font-family:'Courier New',monospace;}
+.narrative-loading{color:var(--text3);font-style:italic;}
+
+/* Section headers */
+.section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:24px;}
+.section-hdr:first-of-type{margin-top:0;}
+.section-title{font-size:13px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text2);}
+.section-line{flex:1;height:0.5px;background:var(--border);}
+
+/* Metric cards grid */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:4px;}
+.mc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;}
+.mc-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.mc-val{font-family:'Courier New',monospace;font-size:19px;font-weight:700;color:var(--text);}
+.mc-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+.mc-change{font-size:11px;font-family:'Courier New',monospace;margin-top:2px;}
+.up{color:var(--green);} .dn{color:var(--red);} .neu{color:var(--text3);}
+
+/* Signal badge */
+.sig{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.05em;}
+.sig-green{background:var(--green-dim);color:var(--green);}
+.sig-red{background:var(--red-dim);color:var(--red);}
+.sig-amber{background:var(--amber-dim);color:var(--amber);}
+.sig-blue{background:var(--blue-dim);color:var(--blue);}
+.sig-gray{background:rgba(128,128,128,.1);color:var(--text3);}
+
+
+/* Sector heat map */
+.sector-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:4px;}
+.sector-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;}
+.sector-name{font-size:13px;color:var(--text3);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sector-ticker{font-size:9px;color:var(--text3);opacity:.6;}
+.sector-ret{font-family:'Courier New',monospace;font-size:18px;font-weight:700;}
+.sector-bar-track{height:3px;background:var(--bg3);border-radius:2px;margin-top:6px;position:relative;}
+.sector-bar-fill{height:3px;border-radius:2px;position:absolute;top:0;}
+
+/* Labor table */
+.labor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+
+/* Inflation row */
+.inf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;}
+
+/* Mini sparkline placeholder */
+.spark-wrap{margin-top:6px;height:28px;position:relative;overflow:hidden;}
+.spark-svg{width:100%;height:28px;}
+
+/* FRED key prompt */
+.fred-key-card{background:var(--bg2);border:1px dashed rgba(239,159,39,.4);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;}
+.fred-key-title{font-size:12px;font-weight:600;color:var(--amber);margin-bottom:6px;}
+.fred-key-text{font-size:12px;color:var(--text2);line-height:1.6;}
+.fred-key-text a{color:var(--blue);}
+.fred-key-text code{background:var(--bg3);padding:1px 6px;border-radius:3px;font-family:'Courier New',monospace;font-size:11px;color:var(--amber);}
+
+/* No-data state */
+.no-data{font-size:12px;color:var(--text3);font-style:italic;padding:8px 0;}
+.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;color:rgba(255,255,255,0.5);background:transparent;cursor:pointer;transition:all .15s;}
+  .nav-btn:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.9);}
+  .nav-btn.active{background:rgba(74,144,217,0.15);color:#4A90D9;border-color:rgba(74,144,217,.4);}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Nav Toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:4px;">
+      <a href="http://localhost:5000/home" class="nav-btn">🏠 Home</a>
+      <a href="http://localhost:5000/macro" class="nav-btn active">📊 Macro Dashboard</a>
+      <a href="http://localhost:5000/etf" class="nav-btn">📈 ETF Scanner</a>
+      <a href="http://localhost:5000/etf-lab" class="nav-btn">🧪 ETF Lab</a>
+      <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a><a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="todayDate" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-right:6px"></div>
+      <div class="sub" id="lastUp" style="margin-top:0">Initializing...</div>
+      <button class="btn btn-primary" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
+  <div style="margin-bottom:16px;">
+    <h1 style="font-size:17px;font-weight:600;letter-spacing:.04em;">📊 Macro Health Dashboard</h1>
+  </div>
+
+  <div class="pgwrap"><div class="pgbar" id="pgbar"></div></div>
+  <div class="status loading" id="statusEl"><span class="dot"></span><span id="statusMsg">Loading macro data...</span></div>
+
+  <div class="fred-notice" id="fredNotice">
+    ⚡ <strong>Unlock full macro data</strong> — CPI, M2 money supply, labor data, and yield curve metrics require a free FRED API key.
+    Get one in 60 seconds at <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank">fred.stlouisfed.org</a>,
+    then open <code>macro_server.py</code> and set <code>FRED_API_KEY = 'your_key_here'</code>.
+  </div>
+
+  <!-- Narrative -->
+  <div class="narrative-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div class="narrative-label" style="margin-bottom:0">⬡ Market Pulse — Key Signals</div>
+      <div class="narrative-ts" id="narrativeTs"></div>
+    </div>
+    <div id="narrativeText"><span class="spinner"></span>Building narrative from live data...</div>
+  </div>
+
+  <!-- Capital Wave Momentum Signal -->
+  <div class="section-hdr" style="margin-top:16px">
+    <span class="section-title" style="color:var(--blue)">🌊 Capital Wave Momentum</span>
+    <div class="section-line" style="background:rgba(74,144,217,0.3)"></div>
+  </div>
+  <div id="capitalWaveGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px">
+    <div class="mc"><div class="mc-label">Loading...</div></div>
+  </div>
+  <div id="capitalWaveNote" style="font-size:11px;color:var(--text3);margin-bottom:18px;padding:6px 10px;background:var(--bg3);border-radius:var(--radius);border-left:3px solid var(--blue)">
+    Signal key: <span style="color:var(--green);font-weight:700">● Long Bullish</span> = cap-weight & equal-weight both positive &nbsp;|&nbsp;
+    <span style="color:var(--amber);font-weight:700">● Divergence</span> = disagree = unstable tape &nbsp;|&nbsp;
+    <span style="color:var(--red);font-weight:700">● Confirmed Bearish</span> = both negative
+  </div>
+
+  <!-- Rates & Yield Curve -->
+  <div class="section-hdr"><span class="section-title">Rates & Yield Curve</span><div class="section-line"></div></div>
+  <div class="metric-grid" id="ratesGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+
+  <!-- Volatility -->
+  <div class="section-hdr"><span class="section-title">Volatility (VIX)</span><div class="section-line"></div></div>
+  <div class="metric-grid" id="vixGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+  <!-- Liquidity -->
+  <div class="section-hdr"><span class="section-title">Liquidity Conditions</span><div class="section-line"></div></div>
+  <div class="metric-grid" id="liqGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+  <!-- Inflation -->
+  <div class="section-hdr"><span class="section-title">Inflation</span><div class="section-line"></div></div>
+  <div class="inf-grid" id="infGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+  <!-- Labor -->
+  <div class="section-hdr"><span class="section-title">Labor Market</span><span id="labDateTag" style="font-size:11px;color:var(--text2);margin-left:10px;font-weight:400"></span><div class="section-line"></div></div>
+  <div class="labor-grid" id="laborGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+  <!-- AI Pulse — after Labor Market -->
+  <div class="section-hdr" style="margin-top:20px;cursor:pointer" onclick="toggleCollapse('aiPulseSection')">
+    <span id="aiPulseChevron" style="color:var(--text3);font-size:11px;width:12px">▾</span>
+    <span class="section-title" style="color:#7F77DD">⚡ AI Pulse — Infrastructure & Demand Signals</span>
+    <div class="section-line" style="background:rgba(127,119,221,0.3)"></div>
+  </div>
+  <div id="aiPulseSection">
+    <div id="aiCapexGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:8px"></div>
+    <div id="aiSignalGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;align-items:start"></div>
+    <div id="aiPulseGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:8px">
+      <div class="mc"><div class="mc-label">Loading AI metrics...</div><div class="mc-val">—</div></div>
+    </div>
+    <div id="aiFootnote" style="font-size:10px;color:var(--text3);padding:6px 0 12px;line-height:1.6"></div>
+  </div>
+
+  <!-- AI Breakout vs Loop Test -->
+  <div class="section-hdr" style="margin-top:4px;cursor:pointer" onclick="toggleCollapse('aiLoopSection')">
+    <span id="aiLoopChevron" style="color:var(--text3);font-size:11px;width:12px">▾</span>
+    <span class="section-title" style="color:#7F77DD">🧪 AI Breakout vs Loop Test — Quarterly Scorecard</span>
+    <div class="section-line" style="background:rgba(127,119,221,0.3)"></div>
+  </div>
+  <div id="aiLoopSection">
+    <div id="aiLoopGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:8px"></div>
+    <div id="aiLoopComposite" style="margin-bottom:18px"></div>
+  </div>
+
+  <!-- Market Breadth -->
+  <div class="section-hdr"><span class="section-title">Market Breadth & SPY</span><div class="section-line"></div></div>
+  <div class="metric-grid" id="breadthGrid"><div class="mc"><div class="mc-label">Loading</div><div class="mc-val">—</div></div></div>
+
+
+  <!-- Sector Rotation -->
+  <div class="section-hdr"><span class="section-title">Sector Rotation</span><span id="sectorDateTag" style="font-size:11px;color:var(--text2);margin-left:10px;font-weight:400"></span><div class="section-line"></div></div>
+  <div class="sector-grid" id="sectorGrid"><div class="mc"><div class="mc-label">Loading sectors...</div></div></div>
+
+  <!-- Discretionary Spending Indicators -->
+  <div class="section-hdr" style="margin-top:24px">
+    <span class="section-title" style="color:var(--amber)">🛍️ Discretionary Spending Indicators</span>
+    <div class="section-line" style="background:rgba(239,159,39,0.3)"></div>
+  </div>
+  <div id="discretGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-bottom:6px"></div>
+  <div id="discretDateTag" style="font-size:11px;color:var(--text2);margin-bottom:18px;padding:4px 0"></div>
+
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+let macroData = null;
+
+// ── Collapsible sections (AI Pulse, AI Breakout vs Loop Test) ──
+// State persists in localStorage so a collapsed section stays collapsed
+// across page reloads, not just within the current session.
+function toggleCollapse(sectionId){
+  const el = document.getElementById(sectionId);
+  const chevronId = sectionId.replace('Section', 'Chevron');
+  const chevron = document.getElementById(chevronId);
+  if(!el) return;
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? '' : 'none';
+  if(chevron) chevron.textContent = isHidden ? '▾' : '▸';
+  localStorage.setItem('macroCollapsed_'+sectionId, isHidden ? '0' : '1');
+}
+
+function restoreCollapsedSections(){
+  ['aiPulseSection', 'aiLoopSection'].forEach(sectionId => {
+    const collapsed = localStorage.getItem('macroCollapsed_'+sectionId) === '1';
+    if(collapsed){
+      const el = document.getElementById(sectionId);
+      const chevron = document.getElementById(sectionId.replace('Section', 'Chevron'));
+      if(el) el.style.display = 'none';
+      if(chevron) chevron.textContent = '▸';
+    }
+  });
+}
+restoreCollapsedSections();
+
+// Today's date
+(function(){
+  const d = new Date();
+  const el = document.getElementById('todayDate');
+  if(el) el.textContent = d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+})();
+
+function setStatus(msg, type){
+  const el = document.getElementById('statusEl');
+  el.querySelector('#statusMsg').textContent = msg;
+  el.className = 'status ' + type;
+}
+
+function pct(n, dec=2){ return n != null ? (n >= 0 ? '+' : '') + n.toFixed(dec) + '%' : '—'; }
+function val(n, dec=2, suffix=''){ return n != null ? n.toFixed(dec) + suffix : '—'; }
+function chgClass(n){ return n == null ? 'neu' : n > 0 ? 'up' : n < 0 ? 'dn' : 'neu'; }
+function sigClass(n, goodHigh=true){
+  if(n == null) return 'sig-gray';
+  if(goodHigh) return n > 0 ? 'sig-green' : 'sig-red';
+  return n < 0 ? 'sig-green' : 'sig-red';
+}
+
+function mc(label, value, sub='', changeVal=null, changeSuffix='%'){
+  const chg = changeVal != null ? `<div class="mc-change ${chgClass(changeVal)}">${changeVal >= 0 ? '+' : ''}${changeVal.toFixed(2)}${changeSuffix}</div>` : '';
+  return `<div class="mc"><div class="mc-label">${label}</div><div class="mc-val">${value}</div>${sub ? `<div class="mc-sub">${sub}</div>` : ''}${chg}</div>`;
+}
+
+function renderRates(r){
+  if(!r) return;
+  const grid = document.getElementById('ratesGrid');
+  const spread = r.two_ten_spread;
+  const spreadSig = spread == null ? 'sig-gray' : spread < 0 ? 'sig-red' : spread < 0.3 ? 'sig-amber' : 'sig-green';
+  const spreadLabel = spread == null ? '—' : spread < 0 ? 'Inverted' : spread < 0.3 ? 'Flat' : 'Normal';
+
+  grid.innerHTML = `
+    ${mc('Fed Funds (proxy)', r.fed_funds != null ? r.fed_funds.toFixed(2)+'%' : '—', '13-week T-bill')}
+    ${mc('10-Year Treasury', r.ten_year != null ? r.ten_year.toFixed(2)+'%' : '—', 'Long-term benchmark')}
+    ${mc('30-Year Treasury', r.thirty_year != null ? r.thirty_year.toFixed(2)+'%' : '—', 'Long bond')}
+    ${mc('30-Yr Mortgage', r.mortgage_30 != null ? r.mortgage_30.toFixed(2)+'%' : '—', 'FRED weekly avg')}
+    <div class="mc"><div class="mc-label">Yield Curve (2s/10s)</div><div class="mc-val">${spread != null ? (spread >= 0 ? '+' : '') + spread.toFixed(2)+'%' : '—'}</div><div class="mc-sub"><span class="sig ${spreadSig}">${spreadLabel}</span></div></div>
+  `;
+
+}
+
+function renderVix(v){
+  if(!v) return;
+  const grid = document.getElementById('vixGrid');
+  const regime = v.regime || 'unknown';
+  const regimeSig = regime === 'low' ? 'sig-amber' : regime === 'normal' ? 'sig-green' : regime === 'elevated' ? 'sig-amber' : 'sig-red';
+  const regimeLabel = regime === 'low' ? 'Complacent' : regime === 'normal' ? 'Normal' : regime === 'elevated' ? 'Elevated' : 'Fear';
+  grid.innerHTML = `
+    <div class="mc"><div class="mc-label">VIX — Fear Gauge</div><div class="mc-val">${v.current != null ? v.current.toFixed(1) : '—'}</div><div class="mc-sub"><span class="sig ${regimeSig}">${regimeLabel}</span></div></div>
+    ${mc('VIX 30-Day Avg', v.avg_30d != null ? v.avg_30d.toFixed(1) : '—', 'Recent volatility avg')}
+    <div class="mc"><div class="mc-label">VIX vs 30d Avg</div><div class="mc-val">${v.current != null && v.avg_30d != null ? (v.current - v.avg_30d >= 0 ? '+' : '') + (v.current - v.avg_30d).toFixed(1) : '—'}</div><div class="mc-sub">${v.current > v.avg_30d ? 'Rising — stress increasing' : 'Below avg — calm'}</div></div>
+  `;
+}
+
+function renderLiquidity(l){
+  if(!l) return;
+  const grid = document.getElementById('liqGrid');
+  const dxySig = l.dxy == null ? 'sig-gray' : l.dxy > 104 ? 'sig-red' : l.dxy < 100 ? 'sig-green' : 'sig-amber';
+  const dxyLabel = l.dxy == null ? '—' : l.dxy > 104 ? 'Strong $' : l.dxy < 100 ? 'Weak $' : 'Neutral';
+  const m2Sig = l.m2_yoy == null ? 'sig-gray' : l.m2_yoy < 0 ? 'sig-red' : l.m2_yoy > 5 ? 'sig-green' : 'sig-amber';
+  const creditSig = l.credit_signal === 'tightening' ? 'sig-red' : l.credit_signal === 'stable' ? 'sig-green' : 'sig-gray';
+
+  grid.innerHTML = `
+    <div class="mc"><div class="mc-label">US Dollar (DXY)</div><div class="mc-val">${l.dxy != null ? l.dxy.toFixed(1) : '—'}</div><div class="mc-sub"><span class="sig ${dxySig}">${dxyLabel}</span></div></div>
+    <div class="mc"><div class="mc-label">M2 Money Supply YoY</div><div class="mc-val">${l.m2_yoy != null ? (l.m2_yoy >= 0 ? '+' : '') + l.m2_yoy.toFixed(1) + '%' : '—'}</div><div class="mc-sub"><span class="sig ${m2Sig}">${l.m2_yoy == null ? 'FRED needed' : l.m2_yoy < 0 ? 'Contracting' : l.m2_yoy > 5 ? 'Expanding' : 'Moderate'}</span></div></div>
+    <div class="mc"><div class="mc-label">Fed Balance Sheet</div><div class="mc-val">${l.fed_balance_sheet != null ? '$' + (l.fed_balance_sheet/1e9).toFixed(1) + 'T' : '—'}</div><div class="mc-sub">Billions (FRED)</div></div>
+    <div class="mc"><div class="mc-label">HYG (High Yield ETF)</div><div class="mc-val">${l.hyg_price != null ? '$' + l.hyg_price.toFixed(2) : '—'}</div><div class="mc-sub ${chgClass(l.hyg_1m_ret)}">${l.hyg_1m_ret != null ? (l.hyg_1m_ret >= 0 ? '+' : '') + l.hyg_1m_ret.toFixed(2) + '% (1mo)' : ''}</div></div>
+    <div class="mc"><div class="mc-label">Credit Signal</div><div class="mc-val"><span class="sig ${creditSig}">${l.credit_signal === 'tightening' ? 'Tightening' : l.credit_signal === 'stable' ? 'Stable' : '—'}</span></div><div class="mc-sub">HY credit conditions</div></div>
+    <div class="mc"><div class="mc-label">TLT (Long Bond ETF)</div><div class="mc-val">${l.tlt != null ? '$' + l.tlt.toFixed(2) : '—'}</div><div class="mc-sub">20+ yr Treasury</div></div>
+  `;
+}
+
+function infMiniBar(history){
+  // Draw mini sparkline bars for last 6 months of yoy values
+  if(!history || !history.length) return '';
+  const vals = history.map(h=>h.value).filter(v=>v!=null);
+  if(!vals.length) return '';
+  const max = Math.max(...vals.map(Math.abs), 0.1);
+  return '<div style="display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:5px">' +
+    history.map((h,i)=>{
+      const v = h.value;
+      if(v==null) return '<div style="width:8px;background:var(--bg4);height:4px;border-radius:1px"></div>';
+      const h2 = Math.max(3, Math.round((Math.abs(v)/max)*20));
+      const col = v > 4 ? 'var(--red)' : v > 2.5 ? 'var(--amber)' : 'var(--green)';
+      const isLast = i===history.length-1;
+      return `<div title="${h.date}: ${v.toFixed(1)}%" style="width:8px;height:${h2}px;background:${col};border-radius:1px;opacity:${isLast?1:0.55};flex-shrink:0"></div>`;
+    }).join('') + '</div>';
+}
+
+function infCard(label, curr, prior, sig, sigLabel, history){
+  const arrow = (curr!=null && prior!=null) ? (curr < prior ? ' ↓' : curr > prior ? ' ↑' : ' →') : '';
+  const arrowCol = (curr!=null && prior!=null) ? (curr < prior ? 'var(--green)' : curr > prior ? 'var(--red)' : 'var(--text3)') : '';
+  const priorTxt = prior!=null ? '<div style="font-size:12px;color:var(--text3);margin-top:3px">Yr ago: <span style="color:var(--text2);font-weight:600">'+prior.toFixed(1)+'%</span></div>' : '';
+  return '<div class="mc">'
+    + '<div class="mc-label">'+label+'</div>'
+    + '<div style="display:flex;align-items:center;gap:8px">'
+    + '<div class="mc-val">'+(curr!=null?curr.toFixed(1)+'%':'—')+'</div>'
+    + (arrow ? '<span style="font-size:22px;font-weight:900;color:'+arrowCol+';line-height:1">'+arrow+'</span>' : '')
+    + '</div>'
+    + '<div class="mc-sub"><span class="sig '+sig+'">'+sigLabel+'</span></div>'
+    + priorTxt
+    + infMiniBar(history)
+    + '</div>';
+}
+
+function renderInflation(inf){
+  if(!inf) return;
+  const grid = document.getElementById('infGrid');
+  // Date tag
+  const now = new Date();
+  const qtr = 'Q' + Math.ceil((now.getMonth()+1)/3) + ' ' + now.getFullYear();
+  const infDateEl = document.getElementById('infDateTag');
+  if(infDateEl) infDateEl.textContent = 'FRED data · as of ' + qtr;
+  const cpiSig  = inf.cpi_yoy==null?'sig-gray':inf.cpi_yoy>4?'sig-red':inf.cpi_yoy>2.5?'sig-amber':'sig-green';
+  const ccpiSig = inf.cpi_core_yoy==null?'sig-gray':inf.cpi_core_yoy>4?'sig-red':inf.cpi_core_yoy>2.5?'sig-amber':'sig-green';
+  const pceSig  = inf.pce_yoy==null?'sig-gray':inf.pce_yoy>4?'sig-red':inf.pce_yoy>2.5?'sig-amber':'sig-green';
+  const cpceS   = inf.core_pce_yoy==null?'sig-gray':inf.core_pce_yoy>3?'sig-red':inf.core_pce_yoy>2.2?'sig-amber':'sig-green';
+
+  grid.innerHTML =
+    infCard('CPI YoY', inf.cpi_yoy, inf.cpi_prior_yoy, cpiSig,
+      inf.cpi_yoy==null?'FRED needed':inf.cpi_yoy>4?'Hot':inf.cpi_yoy>2.5?'Elevated':'Near target',
+      inf.cpi_history) +
+    infCard('Core CPI YoY', inf.cpi_core_yoy, inf.cpi_core_prior_yoy, ccpiSig,
+      inf.cpi_core_yoy==null?'FRED needed':inf.cpi_core_yoy>4?'Hot':inf.cpi_core_yoy>2.5?'Elevated':'Near target',
+      inf.core_cpi_history) +
+    infCard('PCE YoY', inf.pce_yoy, inf.pce_prior_yoy, pceSig,
+      inf.pce_yoy==null?'FRED needed':inf.pce_yoy>4?'Hot':inf.pce_yoy>2.5?'Elevated':'Near target',
+      inf.pce_history) +
+    infCard('Core PCE YoY', inf.core_pce_yoy, inf.core_pce_prior_yoy, cpceS,
+      inf.core_pce_yoy==null?'FRED needed':inf.core_pce_yoy>3?'Hot':inf.core_pce_yoy>2.2?'Elevated':'Near target',
+      inf.core_pce_history) +
+    '<div class="mc"><div class="mc-label">5-Yr Breakeven</div><div class="mc-val">'+(inf.breakeven_5yr!=null?inf.breakeven_5yr.toFixed(2)+'%':'—')+'</div><div class="mc-sub">Market inflation expectation</div></div>' +
+    '<div class="mc"><div class="mc-label">Truflation</div><div class="mc-val" style="font-size:12px">See truflation.com</div><div class="mc-sub">Real-time alt measure</div></div>';
+}
+
+function qtrBars(series, fmt, goodHigh, refVal){
+  if(!series || !series.length) return '';
+  const data = series.slice(-4);
+  const vals = data.map(function(d){return d.value;}).filter(function(v){return v!=null;});
+  if(!vals.length) return '';
+  const maxAbs = Math.max.apply(null, vals.map(Math.abs).concat([0.01]));
+  let html = '<div style="display:flex;align-items:flex-end;gap:4px;height:52px;margin-top:6px">';
+  data.forEach(function(d,i){
+    const v = d.value;
+    if(v==null){ html += '<div style="flex:1;background:var(--bg4);height:4px;border-radius:2px"></div>'; return; }
+    const hPct = Math.max(8, Math.round((Math.abs(v)/maxAbs)*36));
+    let col;
+    if(refVal!=null) col = goodHigh ? (v>=refVal?'var(--green)':'var(--red)') : (v<=refVal?'var(--green)':'var(--red)');
+    else col = goodHigh ? (v>0?'var(--green)':'var(--red)') : (v<0?'var(--green)':'var(--red)');
+    const opacity = (i===data.length-1) ? '1' : '0.6';
+    const label = d.date ? d.date.slice(0,7) : '';
+    html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">'
+      + '<div style="font-size:10px;color:var(--text2);white-space:nowrap">'+fmt(v)+'</div>'
+      + '<div style="width:100%;height:'+hPct+'px;background:'+col+';border-radius:2px;opacity:'+opacity+'"></div>'
+      + '<div style="font-size:10px;color:var(--text2);white-space:nowrap">'+(label.slice(5)||'')+'</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderLabor(lab){
+  if(!lab) return;
+  const grid = document.getElementById('laborGrid');
+  const now = new Date();
+  const qtr = 'Q' + Math.ceil((now.getMonth()+1)/3) + ' ' + now.getFullYear();
+  const labDateEl = document.getElementById('labDateTag');
+  if(labDateEl) labDateEl.textContent = 'FRED data · as of ' + qtr;
+  const unempSig  = lab.unemployment==null?'sig-gray':lab.unemployment<4?'sig-green':lab.unemployment<5?'sig-amber':'sig-red';
+  const nfpSig    = lab.nfp_mom==null?'sig-gray':lab.nfp_mom>200000?'sig-green':lab.nfp_mom>75000?'sig-amber':'sig-red';
+  const claimsSig = lab.initial_claims==null?'sig-gray':lab.initial_claims<220000?'sig-green':lab.initial_claims<260000?'sig-amber':'sig-red';
+  const joltsSig  = lab.jolts_openings==null?'sig-gray':lab.jolts_openings>8000?'sig-green':lab.jolts_openings>6000?'sig-amber':'sig-red';
+  const quitsSig  = lab.quits_rate==null?'sig-gray':lab.quits_rate>=2.3?'sig-green':lab.quits_rate>=1.8?'sig-amber':'sig-red';
+  const nfpDisplay = lab.nfp_mom!=null?(lab.nfp_mom>=0?'+':'')+Math.round(lab.nfp_mom/1000)+'K':'—';
+
+  function mc2(label, val, sub, sig, sigLabel, bars){
+    return '<div class="mc">'
+      + '<div class="mc-label">'+label+'</div>'
+      + '<div class="mc-val">'+val+'</div>'
+      + '<div class="mc-sub"><span class="sig '+sig+'">'+sigLabel+'</span></div>'
+      + (bars||'')
+      + '</div>';
+  }
+
+  grid.innerHTML =
+    mc2('Unemployment Rate',
+      lab.unemployment!=null?lab.unemployment.toFixed(1)+'%':'—',
+      '', unempSig,
+      lab.unemployment==null?'FRED needed':lab.unemployment<4?'Tight labor':lab.unemployment<5?'Normalizing':'Weakening',
+      qtrBars(lab.unemp_quarterly, function(v){return v.toFixed(1)+'%';}, false, 4.5)) +
+    mc2('Non-Farm Payrolls MoM',
+      nfpDisplay, '', nfpSig,
+      lab.nfp_mom==null?'FRED needed':lab.nfp_mom>200000?'Strong':lab.nfp_mom>75000?'Moderate':'Slowing',
+      qtrBars(lab.nfp_quarterly, function(v){return (v>=0?'+':'')+Math.round(v/1000)+'K';}, true, 0)) +
+    mc2('Initial Jobless Claims',
+      lab.initial_claims!=null?Math.round(lab.initial_claims/1000)+'K':'—',
+      '', claimsSig,
+      lab.initial_claims==null?'FRED needed':lab.initial_claims<220000?'Low — healthy':lab.initial_claims<260000?'Rising — watch':'Elevated',
+      qtrBars(lab.claims_quarterly, function(v){return Math.round(v/1000)+'K';}, false, 250000)) +
+    mc2('Labor Participation Rate',
+      lab.lfpr!=null?lab.lfpr.toFixed(1)+'%':'—',
+      '% of adults working/seeking', 'sig-gray', lab.lfpr!=null?lab.lfpr.toFixed(1)+'%':'—',
+      qtrBars(lab.lfpr_series, function(v){return v.toFixed(1)+'%';}, true, 62)) +
+    '<div class="mc"><div class="mc-label">JOLTS Openings</div><div class="mc-val">'+(lab.jolts_openings!=null?(lab.jolts_openings/1000).toFixed(1)+'M':'—')+'</div><div class="mc-sub"><span class="sig '+joltsSig+'">'+(lab.jolts_openings==null?'FRED needed':lab.jolts_openings>8000?'Abundant':lab.jolts_openings>6000?'Moderate':'Slowing')+'</span></div></div>' +
+    '<div class="mc"><div class="mc-label">Quit Rate</div><div class="mc-val">'+(lab.quits_rate!=null?lab.quits_rate.toFixed(1)+'%':'—')+'</div><div class="mc-sub"><span class="sig '+quitsSig+'">'+(lab.quits_rate==null?'FRED needed':lab.quits_rate>=2.3?'Confident workers':lab.quits_rate>=1.8?'Moderating':'Low — cautious')+'</span></div></div>';
+}
+
+function renderBreadth(b){
+  if(!b || !Object.keys(b).length) return;
+  const grid = document.getElementById('breadthGrid');
+  const ytdSig = b.spy_ytd == null ? 'sig-gray' : b.spy_ytd > 10 ? 'sig-green' : b.spy_ytd > 0 ? 'sig-amber' : 'sig-red';
+  const breadthSig = b.breadth_signal === 'strong' ? 'sig-green' : 'sig-amber';
+
+  grid.innerHTML = `
+    <div class="mc"><div class="mc-label">SPY Price</div><div class="mc-val">$${b.spy_price != null ? b.spy_price.toFixed(2) : '—'}</div><div class="mc-sub ${chgClass(b.spy_ytd)}">YTD: ${b.spy_ytd != null ? (b.spy_ytd >= 0 ? '+' : '') + b.spy_ytd.toFixed(1) + '%' : '—'}</div></div>
+    <div class="mc"><div class="mc-label">SPY vs 200-SMA</div><div class="mc-val ${chgClass(b.spy_vs_200sma)}">${b.spy_vs_200sma != null ? (b.spy_vs_200sma >= 0 ? '+' : '') + b.spy_vs_200sma.toFixed(1) + '%' : '—'}</div><div class="mc-sub">Trend health</div></div>
+    <div class="mc"><div class="mc-label">SPY vs 50-SMA</div><div class="mc-val ${chgClass(b.spy_vs_50sma)}">${b.spy_vs_50sma != null ? (b.spy_vs_50sma >= 0 ? '+' : '') + b.spy_vs_50sma.toFixed(1) + '%' : '—'}</div><div class="mc-sub">Near-term momentum</div></div>
+    <div class="mc"><div class="mc-label">Equal-Weight 3M (RSP)</div><div class="mc-val ${chgClass(b.rsp_3m)}">${b.rsp_3m != null ? (b.rsp_3m >= 0 ? '+' : '') + b.rsp_3m.toFixed(1) + '%' : '—'}</div><div class="mc-sub">Market breadth proxy</div></div>
+    <div class="mc"><div class="mc-label">Cap-Weight 3M (SPY)</div><div class="mc-val ${chgClass(b.spy_3m)}">${b.spy_3m != null ? (b.spy_3m >= 0 ? '+' : '') + b.spy_3m.toFixed(1) + '%' : '—'}</div><div class="mc-sub">Mega-cap driven</div></div>
+    <div class="mc"><div class="mc-label">Breadth Signal</div><div class="mc-val"><span class="sig ${breadthSig}">${b.breadth_signal === 'strong' ? 'Broad' : 'Narrow'}</span></div><div class="mc-sub">${b.breadth_signal === 'strong' ? 'Wide participation' : 'Mega-cap concentration risk'}</div></div>
+  `;
+}
+
+function renderSectors(sectors){
+  if(!sectors || !sectors.length) return;
+  const grid = document.getElementById('sectorGrid');
+  const now = new Date();
+  const monthYear = now.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const secDateEl = document.getElementById('sectorDateTag');
+  if(secDateEl) secDateEl.textContent = '1-Month Performance · as of ' + monthYear;
+  const sorted = [...sectors].sort((a,b) => (b.ret_1m||0) - (a.ret_1m||0));
+  const maxAbs = Math.max(...sorted.map(s => Math.abs(s.ret_1m||0)));
+
+  grid.innerHTML = sorted.map(s => {
+    const ret = s.ret_1m;
+    const retColor = ret == null ? '#888' : ret > 2 ? '#1DB87A' : ret > 0 ? '#5fc49a' : ret > -2 ? '#ef9f27' : '#E24B4A';
+    const barW = maxAbs > 0 && ret != null ? Math.abs(ret)/maxAbs*100 : 0;
+    const barColor = ret >= 0 ? '#1DB87A' : '#E24B4A';
+    const barLeft = ret >= 0 ? '50%' : `${50 - barW/2}%`;
+    return `<div class="sector-card">
+      <div class="sector-name">${s.name}</div>
+      <div class="sector-ret" style="color:${retColor}">${ret != null ? (ret >= 0 ? '+' : '') + ret.toFixed(1) + '%' : '—'}</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:2px">${s.ticker} · 3M: ${s.ret_3m != null ? (s.ret_3m >= 0 ? '+' : '') + s.ret_3m.toFixed(1) + '%' : '—'}</div>
+      <div class="sector-bar-track" style="margin-top:6px">
+        <div class="sector-bar-fill" style="left:${ret != null && ret < 0 ? (50 - barW/2) + '%' : '50%'};width:${barW/2}%;background:${barColor}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderNarrative(narrative, ts){
+  const el = document.getElementById('narrativeText');
+  if(!narrative || (Array.isArray(narrative) && !narrative.length)){
+    el.innerHTML = '<span style="color:var(--text3);font-style:italic">Narrative unavailable — check server connection.</span>';
+    return;
+  }
+  const rawBullets = Array.isArray(narrative) ? narrative : narrative.split('. ').filter(s=>s.length>10);
+  if(rawBullets.length === 1 && rawBullets[0] === '__ALL_GREEN__'){
+    el.innerHTML = '<div style="padding:14px 16px;color:var(--green);font-size:14px;font-weight:600;display:flex;align-items:center;gap:10px"><span style="font-size:22px">✅</span>All signals green — no active watches or warnings. Markets look healthy across all monitored indicators.</div>';
+    const now = new Date();
+  const qtr = 'Q' + Math.ceil((now.getMonth()+1)/3) + ' ' + now.getFullYear();
+  document.getElementById('narrativeTs').textContent = ts ? 'Market Pulse · As of ' + ts : 'Market Pulse · ' + qtr;
+    return;
+  }
+  const bullets = rawBullets;
+
+  // Classify each bullet as RED (warning), AMBER (watch), or GREEN (ok)
+  // Only show RED and AMBER in Market Pulse — green items suppressed
+  const redWords   = ['WARNING','INVERTED','HOT','FEAR','pressure','stress','LAGGING','CONTRACTING','ELEVATED','off the table','Narrow rally','concentration risk'];
+  const amberWords = ['ELEVATED','watch','Moderating','nearly flat','Complacent','Softening','above target','Watch','Monitor'];
+  const greenWords = ['healthy','Strong','Broad','constructive','Normal','growing','intact','Near target','Risk-on','tracking cap-weight','Door opening','opening'];
+
+  // Label colors
+  const labelColors = {
+    'RATES':     {bg:'rgba(74,144,217,0.12)',  border:'rgba(74,144,217,0.4)',  text:'#4A90D9'},
+    'VIX':       {bg:'rgba(127,119,221,0.12)', border:'rgba(127,119,221,0.4)', text:'#7F77DD'},
+    'LIQUIDITY': {bg:'rgba(45,212,191,0.10)',  border:'rgba(45,212,191,0.35)', text:'#2DD4BF'},
+    'INFLATION': {bg:'rgba(239,159,39,0.12)',  border:'rgba(239,159,39,0.4)',  text:'#EF9F27'},
+    'LABOR':     {bg:'rgba(29,184,122,0.12)',  border:'rgba(29,184,122,0.4)',  text:'#1DB87A'},
+    'ROTATION':  {bg:'rgba(239,159,39,0.10)',  border:'rgba(239,159,39,0.35)', text:'#EF9F27'},
+    'BREADTH':   {bg:'rgba(226,75,74,0.10)',   border:'rgba(226,75,74,0.4)',   text:'#E24B4A'},
+  };
+
+  const filtered = bullets.filter(b => {
+    const isGreen = greenWords.some(w => b.includes(w)) && !redWords.some(w => b.includes(w));
+    return !isGreen; // only show watch/warning
+  });
+
+  if(!filtered.length){
+    el.innerHTML = '<div style="padding:12px;color:var(--green);font-size:13px;font-weight:600">✅ All signals green — no active watches or warnings.</div>';
+    document.getElementById('narrativeTs').textContent = ts ? 'As of: ' + ts : '';
+    return;
+  }
+
+  el.innerHTML = filtered.map(b => {
+    const labelMatch = b.match(/^\[([A-Z]+)\]/);
+    const label = labelMatch ? labelMatch[1] : null;
+    const colors = label && labelColors[label] ? labelColors[label] : {bg:'rgba(255,255,255,0.04)', border:'rgba(255,255,255,0.12)', text:'var(--text3)'};
+    const bodyText = (label ? b.replace('['+label+']','').trim() : b);
+
+    const isRed   = redWords.some(w => b.includes(w));
+    const isAmber = !isRed && amberWords.some(w => b.includes(w));
+    let rowBg, rowBorder, statusDot, statusLabel;
+    if(isRed){
+      rowBg = 'rgba(226,75,74,0.09)'; rowBorder = 'rgba(226,75,74,0.45)';
+      statusDot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#E24B4A;flex-shrink:0;margin-top:4px"></span>';
+      statusLabel = '<span style="font-size:10px;font-weight:800;color:#E24B4A;letter-spacing:.06em;margin-right:6px">⚠ WATCH</span>';
+    } else {
+      rowBg = 'rgba(239,159,39,0.08)'; rowBorder = 'rgba(239,159,39,0.4)';
+      statusDot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#EF9F27;flex-shrink:0;margin-top:4px"></span>';
+      statusLabel = '<span style="font-size:10px;font-weight:800;color:#EF9F27;letter-spacing:.06em;margin-right:6px">👁 MONITOR</span>';
+    }
+
+    const badge = label ? '<span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;padding:2px 8px;border-radius:3px;background:'+colors.bg+';color:'+colors.text+';border:0.5px solid '+colors.border+';margin-right:8px;white-space:nowrap;flex-shrink:0">'+label+'</span>' : '';
+
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:6px;border:1px solid '+rowBorder+';background:'+rowBg+';margin-bottom:8px">'
+      + statusDot
+      + '<div style="flex:1">'
+      + '<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">'+statusLabel+badge+'</div>'
+      + '<div style="font-size:13px;color:var(--text2);line-height:1.65">'+bodyText+'</div>'
+      + '</div></div>';
+  }).join('');
+
+  document.getElementById('narrativeTs').textContent = ts ? 'As of: ' + ts : '';
+}
+
+
+function renderAIPulse(){
+  const MSFT_C  = '#00A4EF';
+  const GOOGL_C = '#EA4335';
+  const AMZN_C  = '#FF9900';
+  const META_C  = '#7F77DD';
+  const NVDA_C  = '#76B900';
+
+  // ── Row 1: CapEx — brand colored top borders ──
+  const capexGrid = document.getElementById('aiCapexGrid');
+  capexGrid.innerHTML =
+    mcCapex('MSFT',     '$190B',    '2026 CapEx guidance', '+84% YoY',        MSFT_C) +
+    mcCapex('GOOGL',    '$175–185B','2026 CapEx guidance', '+2× YoY',         GOOGL_C) +
+    mcCapex('AMZN',     '$200B',    '2026 CapEx guidance', 'Sustained',        AMZN_C) +
+    mcCapex('META',     '$125–145B','2026 CapEx guidance', '↑ Raised',         META_C) +
+    mcCapex('Combined', '~$725B',   '4 hyperscalers 2026', 'vs $410B in 2025', NVDA_C);
+
+  // ── Row 2: Each company gets its own column div — color stays in its lane v2 ──
+  const signalGrid = document.getElementById('aiSignalGrid');
+  signalGrid.innerHTML =
+    mcCol([
+      mcDetail('Azure Backlog',      '$315B',    'Contracted future revenue — Q1 2026',         MSFT_C),
+      mcDetail('Azure Rev Growth',   '+33% YoY', 'Q1 2026 — AI services accelerating',          MSFT_C),
+      mcDetail('Azure AI Run Rate',  '$37B+',    'Annualized AI revenue — Q3 FY2026',           MSFT_C),
+    ]) +
+    mcCol([
+      mcDetail('GCP Backlog',        '$460B',    'Doubled QoQ from $240B — Q1 2026',            GOOGL_C),
+      mcDetail('GCP Rev Growth',     '+28% YoY', '$12.3B quarterly — Q1 2026',                  GOOGL_C),
+      mcDetail('GCP Run Rate',       '$49B+',    'Annualized Google Cloud — Q1 2026',            GOOGL_C),
+    ]) +
+    mcCol([
+      mcDetail('AWS Backlog',        '$189B',    'Long-term contracted cloud — Q1 2026',         AMZN_C),
+      mcDetail('AWS Rev Growth',     '+17% YoY', '$29.3B quarterly — Q1 2026',                  AMZN_C),
+      mcDetail('AWS Run Rate',       '$117B+',   'Annualized AWS revenue — Q1 2026',             AMZN_C),
+    ]) +
+    mcCol([
+      mcDetail('Llama Downloads',    '1B+',      'Open-weight model cumulative downloads',       META_C),
+      mcDetail('Llama Growth',       '+400% YoY','Enterprise adoption — 2024 to 2025',           META_C),
+      mcDetail('Meta AI MAU',        '700M+',    'Monthly active users on Meta AI assistant',    META_C),
+    ]) +
+    mcCol([
+      mcDetail('NVDA DC Revenue',    '$39.1B',   'Q1 FY2026 — record quarter, +409% YoY',       NVDA_C),
+      mcDetail('IDC AI Infra 2029',  '$758B',    '42% 5-yr CAGR — AI server, storage, network', NVDA_C),
+      mcDetail('2027 CapEx Outlook', '>$1T',     'BofA & Evercore 4-hyperscaler consensus',     NVDA_C),
+    ]);
+
+  // ── Row 3: Silicon Data LLM Token Expenditure Index ──
+  const pulseGrid = document.getElementById('aiPulseGrid');
+  pulseGrid.innerHTML =
+    mcAI('LLM Token Price Index',      '~$1.99/1M',
+         'Silicon Data expenditure-weighted avg across all LLM providers',
+         'sig-amber', '⚡ Stabilizing', '#7F77DD') +
+    mcAI('Index Trend',
+         'Open-weight drove token prices down 2023–2024. Enterprises are now returning to frontier closed models, pushing prices back up.',
+         '',
+         'sig-green', '🔼 Frontier Demand Rising', '#7F77DD') +
+    mcAI('Frontier Model Share',       'Rising',
+         'Enterprise returning to GPT-4o, Claude Opus, Gemini Ultra for production workloads',
+         'sig-green', '✅ Bullish for API Revenue', '#7F77DD') +
+    mcAI('Enterprise Willingness/Pay', 'High',
+         'Marginal price tolerance holding despite open-weight commoditization pressure',
+         'sig-amber', '👁 Watch for Compression', '#7F77DD');
+
+  document.getElementById('aiFootnote').innerHTML =
+    '📌 <strong style="color:var(--text2)">Silicon Data LLM Token Expenditure Index</strong> — expenditure-weighted average price per 1M tokens across all LLM providers. '
+    + 'Tracks enterprise marginal willingness to pay for AI inference. '
+    + 'Source: <a href="https://x.com/Silicon_Data" target="_blank" style="color:var(--blue)">@Silicon_Data</a> · '
+    + 'CapEx & revenue figures from Q1 2026 earnings (Apr–May 2026). Updated manually each earnings cycle.';
+}
+
+function mcCol(cards){
+  return '<div style="display:flex;flex-direction:column;gap:8px">' + cards.join('') + '</div>';
+}
+
+function mcCapex(co, val, sub, chgTxt, col){
+  return '<div class="mc" style="border-top:4px solid '+col+';min-height:90px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div>'
+    + '<div class="mc-label" style="color:'+col+';font-weight:700;font-size:12px;letter-spacing:.04em">'+co+' CapEx</div>'
+    + '<div class="mc-val" style="font-size:20px;margin:4px 0">'+val+'</div>'
+    + '<div class="mc-sub" style="font-size:11px">'+sub+'</div>'
+    + '</div>'
+    + '<div style="font-size:12px;font-weight:700;color:var(--green);font-family:monospace;margin-top:6px">'+chgTxt+'</div>'
+    + '</div>';
+}
+
+function mcDetail(label, val, sub, col){
+  return '<div class="mc" style="border-left:3px solid '+col+';min-height:90px;display:flex;flex-direction:column;justify-content:space-between">'
+    + '<div>'
+    + '<div class="mc-label" style="font-size:10px;color:'+col+';font-weight:600">'+label+'</div>'
+    + '<div class="mc-val" style="font-size:16px;margin:3px 0">'+val+'</div>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);line-height:1.4;margin-top:4px">'+sub+'</div>'
+    + '</div>';
+}
+
+function mcAI(label, val, sub, sigCls, sigLabel, accentColor){
+  return '<div class="mc" style="border-left:3px solid '+accentColor+'">'
+    + '<div class="mc-label">'+label+'</div>'
+    + '<div class="mc-val" style="color:'+accentColor+';font-size:14px;line-height:1.5;font-weight:600">'+val+'</div>'
+    + '<div class="mc-sub" style="margin-top:6px"><span class="sig '+sigCls+'">'+sigLabel+'</span></div>'
+    + (sub ? '<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4">'+sub+'</div>' : '')
+    + '</div>';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AI BREAKOUT VS LOOP TEST — Quarterly Scorecard
+//  Last updated: Q1 2026 (Apr–May earnings cycle)
+//  Update after each earnings cycle. Sources noted per signal.
+// ════════════════════════════════════════════════════════════════
+function renderAILoopTest(){
+  const asOf = 'Q1 2026 earnings (Apr–May 2026)';
+
+  // ── Signal definitions ──
+  const signals = [
+
+    {
+      id: 'outside_revenue',
+      title: '1 · Outside Revenue',
+      subtitle: 'AI sales breaking out of the hyperscaler loop to SMBs & consumers',
+      status: 'green',            // green | amber | red
+      verdict: '🟢 Breakout Confirmed',
+      verdictColor: 'var(--green)',
+      metrics: [
+        {label:'M365 Consumer Cloud Growth', value:'+33% YoY', note:'Q3 FY2026 — real consumer AI spend, not loop'},
+        {label:'M365 Copilot Paid Seats',    value:'20M+',    note:'Apr 2026, +33% QoQ — enterprise outside loop'},
+        {label:'ChatGPT Paid Subscribers',   value:'50M+',    note:'Apr 2026 — consumer subscriptions, hard cash'},
+        {label:'ChatGPT Workplace Seats',    value:'7M+',     note:'Enterprise seats, 9× YoY — SMB adoption real'},
+      ],
+      insight: 'Consumer cloud revenue accelerating FASTER than infrastructure. '
+        +'50M+ paid ChatGPT subscribers are writing real checks. '
+        +'SMB and enterprise seats growing 9× YoY — this is not loop recycling.',
+      watch: 'Watch M365 Consumer growth rate vs Azure growth spread. If consumer closes the gap → outside revenue widening.',
+      source: 'Microsoft Q3 FY2026 earnings · OpenAI Apr 2026 · First Page Sage',
+    },
+
+    {
+      id: 'seller_margins',
+      title: '2 · Seller Margins',
+      subtitle: 'Fat margins = real demand. Collapse = commodity spiral.',
+      status: 'amber',
+      verdict: '🟡 Split Signal — Watch Closely',
+      verdictColor: 'var(--amber)',
+      metrics: [
+        {label:'Anthropic Inference Margin', value:'70%',    note:'Up from 38% a year ago — SemiAnalysis May 2026'},
+        {label:'OpenAI Gross Margin',        value:'33%',    note:'Down from 40% — inference costs quadrupled in 2025'},
+        {label:'AI Inference Price Decline', value:'50× /yr',note:'Epoch AI — equivalent perf costs 50× less per year'},
+        {label:'OpenAI Net Loss H1 2025',    value:'-$13.5B',note:'WSJ — burns $2 for every $1 of inference revenue'},
+      ],
+      insight: 'Anthropic\'s margin recovery to 70% is the bull case — volume growth is outrunning unit price compression. '
+        +'OpenAI is the bear case — margins fell as inference costs quadrupled. '
+        +'Inference prices drop 50× per year by efficiency, so volume must grow 50× just to hold revenue flat.',
+      watch: 'Watch Anthropic quarterly ARR vs margin trajectory. Target: margins above 50% by Q4 2026 while ARR still grows → healthy. '
+        +'If margins compress back below 40% while ARR stalls → commodity spiral confirmed.',
+      source: 'SemiAnalysis May 2026 · The Information Feb 2026 · Epoch AI · Sacra Apr 2026',
+    },
+
+    {
+      id: 'loop_ratio',
+      title: '3 · The Loop Ratio',
+      subtitle: 'Hyperscaler CapEx recycling % — should be falling for a real breakout',
+      status: 'amber',
+      verdict: '🟡 Loop Still Dominant — Early Signs of Break',
+      verdictColor: 'var(--amber)',
+      metrics: [
+        {label:'Hyperscaler CapEx 2026',   value:'~$725B',   note:'MSFT+GOOGL+AMZN+META combined guidance'},
+        {label:'Total AI Revenue (est.)',   value:'~$85B',    note:'Azure AI $37B + AWS AI + GCP — rough combined'},
+        {label:'GCP Backlog Growth',        value:'+92% QoQ', note:'$460B from $240B — majority from external firms'},
+        {label:'MSFT External Customers',   value:'10K+',     note:'Using multiple models on Foundry — real enterprises'},
+      ],
+      insight: 'CapEx at $725B vs ~$85B in AI revenue = roughly 8.5× multiple. '
+        +'The loop is real: hyperscalers build → sell to AI labs → AI labs use cloud → cloud buys more chips. '
+        +'BUT: GCP backlog doubling QoQ from 10,000+ external enterprises is the first sign the loop is cracking outward. '
+        +'The ratio needs to fall from ~85% recycled to below 60% for a confirmed breakout.',
+      watch: 'Track: AWS/GCP/Azure revenue growth rate vs each company\'s own CapEx growth rate each quarter. '
+        +'Revenue outgrowing CapEx = loop breaking. CapEx outgrowing revenue = loop tightening.',
+      source: 'Q1 2026 earnings · Microsoft Foundry disclosure · Converge Digest Apr 2026',
+    },
+
+    {
+      id: 'sticky_subscriptions',
+      title: '4 · Sticky Subscriptions',
+      subtitle: 'Paid adoption surviving the free trial — real budgets, not token-burning',
+      status: 'amber',
+      verdict: '🟡 Enterprise Sticky, Consumer Mixed',
+      verdictColor: 'var(--amber)',
+      metrics: [
+        {label:'ChatGPT Enterprise Retention', value:'88%',   note:'Annual — healthy SaaS benchmark (First Page Sage)'},
+        {label:'ChatGPT Plus Retention',       value:'59%',   note:'Consumer tier — higher churn, still paid'},
+        {label:'Copilot Voluntary Preference', value:'8%',    note:'vs 68% forced adoption — Recon Analytics Jan 2026'},
+        {label:'GitHub Copilot Paid',          value:'4.7M+', note:'+75% YoY — developer stickiness strongest signal'},
+      ],
+      insight: 'Enterprise AI is genuinely sticky — 88% retention is better than most SaaS companies. '
+        +'The warning sign is Copilot: 68% use it when forced, only 8% choose it voluntarily. '
+        +'That 60-point gap is the "free trial that didn\'t stick" problem at massive scale. '
+        +'GitHub Copilot at 4.7M paid developers is the cleanest sticky signal — developers pay $10-19/mo from their own pocket.',
+      watch: 'Watch ChatGPT Enterprise retention each quarter. If it holds above 80% → subscriptions are real. '
+        +'Watch Copilot voluntary preference score — if it rises above 20% → Microsoft\'s AI is earning its keep. '
+        +'If it stays at 8% → seat count is a provisioning metric, not an adoption metric.',
+      source: 'First Page Sage · Recon Analytics Jan 2026 · Microsoft Q2 FY2026 earnings',
+    },
+
+  ];
+
+  // ── Signal status helpers ──
+  function statusBorder(s){ return s==='green'?'var(--green)':s==='amber'?'var(--amber)':'var(--red)'; }
+  function statusBg(s){ return s==='green'?'rgba(29,184,122,0.06)':s==='amber'?'rgba(239,159,39,0.06)':'rgba(226,75,74,0.06)'; }
+
+  // ── Render cards ──
+  const grid = document.getElementById('aiLoopGrid');
+  grid.innerHTML = signals.map(sig => {
+    const border = statusBorder(sig.status);
+    const bg     = statusBg(sig.status);
+    const metricsHtml = sig.metrics.map(m =>
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--border)">'
+      + '<div style="font-size:11px;color:var(--text3);flex:1">' + m.label + '</div>'
+      + '<div style="text-align:right;margin-left:8px">'
+      + '<div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--text)">' + m.value + '</div>'
+      + '<div style="font-size:9px;color:var(--text3);line-height:1.3">' + m.note + '</div>'
+      + '</div></div>'
+    ).join('');
+
+    return '<div style="background:var(--bg3);border:1px solid ' + border + ';border-top:4px solid ' + border + ';border-radius:var(--radius);padding:14px 16px">'
+      // Header
+      + '<div style="margin-bottom:10px">'
+      + '<div style="font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px">' + sig.title + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);line-height:1.4">' + sig.subtitle + '</div>'
+      + '</div>'
+      // Verdict badge
+      + '<div style="display:inline-flex;align-items:center;padding:4px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:20px;font-size:12px;font-weight:700;color:' + sig.verdictColor + ';margin-bottom:12px">' + sig.verdict + '</div>'
+      // Metrics
+      + '<div style="margin-bottom:12px">' + metricsHtml + '</div>'
+      // Insight
+      + '<div style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px;padding:8px 10px;background:var(--bg4);border-radius:var(--radius)">' + sig.insight + '</div>'
+      // Watch
+      + '<div style="font-size:10px;color:var(--amber);line-height:1.5;margin-bottom:6px">👁 ' + sig.watch + '</div>'
+      // Source
+      + '<div style="font-size:9px;color:var(--text3)">Source: ' + sig.source + '</div>'
+      + '</div>';
+  }).join('');
+
+  // ── Composite signal ──
+  const greens = signals.filter(s=>s.status==='green').length;
+  const ambers = signals.filter(s=>s.status==='amber').length;
+  const reds   = signals.filter(s=>s.status==='red').length;
+
+  let composite, compColor, compBg, compBorder, compIcon;
+  if(greens >= 3){
+    composite='✅ BREAKOUT CONFIRMED — Outside revenue, margins and stickiness all pointing to genuine AI diffusion beyond the loop.';
+    compColor='var(--green)'; compBg='rgba(29,184,122,0.08)'; compBorder='rgba(29,184,122,0.4)'; compIcon='🚀';
+  } else if(reds >= 2){
+    composite='🚨 LOOP TRAP — Revenue is recycling within the hyperscaler ecosystem. SMB and consumer adoption not broad enough to sustain current valuations.';
+    compColor='var(--red)'; compBg='rgba(226,75,74,0.08)'; compBorder='rgba(226,75,74,0.4)'; compIcon='⚠️';
+  } else {
+    composite='🟡 TRANSITION ZONE — One signal confirmed breakout (outside revenue). Three signals show early positive trends but not yet confirmed. Loop is cracking but not broken. Next two earnings cycles are decisive.';
+    compColor='var(--amber)'; compBg='rgba(239,159,39,0.08)'; compBorder='rgba(239,159,39,0.4)'; compIcon='📡';
+  }
+
+  document.getElementById('aiLoopComposite').innerHTML =
+    '<div style="padding:14px 18px;border:1px solid ' + compBorder + ';background:' + compBg + ';border-radius:var(--radius);display:flex;align-items:flex-start;gap:14px">'
+    + '<div style="font-size:28px;flex-shrink:0;line-height:1">' + compIcon + '</div>'
+    + '<div style="flex:1">'
+    + '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:' + compColor + ';margin-bottom:4px">Composite Signal — ' + asOf + '</div>'
+    + '<div style="font-size:13px;color:var(--text2);line-height:1.6;font-weight:500">' + composite + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:6px">Signals: ' + greens + ' green · ' + ambers + ' watch · ' + reds + ' red &nbsp;|&nbsp; Update quarterly after earnings. Next update: Q2 2026 (Jul–Aug 2026)</div>'
+    + '</div>'
+    + '</div>';
+}
+
+async function fetchWithTimeout(url, ms=25000){
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), ms);
+  try {
+    const r = await fetch(url, {signal: controller.signal});
+    clearTimeout(tid);
+    return r;
+  } catch(e) {
+    clearTimeout(tid);
+    throw e;
+  }
+}
+
+// ── Capital Wave Momentum Signal ──
+async function renderCapitalWave(){
+  const grid = document.getElementById('capitalWaveGrid');
+
+  const indices = [
+    {name:'S&P 500',     capSym:'SPY',  ewSym:'RSP',  capLabel:'SPY',  ewLabel:'RSP'},
+    {name:'Nasdaq 100',  capSym:'QQQ',  ewSym:'QQEW', capLabel:'QQQ',  ewLabel:'QQEW'},
+    {name:'Russell 2000',capSym:'IWM',  ewSym:'SCHA', capLabel:'IWM',  ewLabel:'SCHA*'},
+  ];
+
+  // Weekly: compare current price vs close from 5 trading days ago
+  async function weeklyChg(sym){
+    try{
+      const r = await fetch(`${API}/quote/${encodeURIComponent(sym)}`);
+      if(!r.ok) return {chg:null, price:null, weekAgo:null};
+      const d = await r.json();
+      if(!d || d.error) return {chg:null, price:null, weekAgo:null};
+      const closes = d.closes || [];
+      const price = d.price;
+      // Use closes[-5] as "week ago" price (5 trading days)
+      const weekAgo = closes.length >= 6 ? closes[closes.length - 6] : null;
+      const chg = (price && weekAgo) ? ((price - weekAgo) / weekAgo) * 100 : null;
+      // Date range: approximate
+      return {chg, price, weekAgo};
+    }catch(e){ return {chg:null, price:null, weekAgo:null}; }
+  }
+
+  // Build date range label (Mon–Fri of current week approx)
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now); monday.setDate(now.getDate() + mondayOffset - 7);
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const fmtD = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const dateRange = fmtD(monday) + ' – ' + fmtD(friday);
+
+  const rows = await Promise.all(indices.map(async idx => {
+    const [cap, ew] = await Promise.all([weeklyChg(idx.capSym), weeklyChg(idx.ewSym)]);
+    return {label:idx.name, capSym:idx.capLabel, ewSym:idx.ewLabel, capChg:cap.chg, ewChg:ew.chg};
+  }));
+
+  grid.innerHTML = rows.map(r => {
+    const capChg = r.capChg, ewChg = r.ewChg;
+    let signal, sigColor, sigBg, sigBorder, icon;
+    if(capChg === null || ewChg === null){
+      signal='No Data'; sigColor='var(--text3)'; sigBg='var(--bg3)'; sigBorder='var(--border)'; icon='—';
+    } else if(capChg > 0 && ewChg > 0){
+      signal='Long Bullish'; sigColor='var(--green)'; sigBg='rgba(29,184,122,0.08)'; sigBorder='rgba(29,184,122,0.4)'; icon='●';
+    } else if(capChg < 0 && ewChg < 0){
+      signal='Confirmed Bearish'; sigColor='var(--red)'; sigBg='rgba(226,75,74,0.08)'; sigBorder='rgba(226,75,74,0.4)'; icon='●';
+    } else {
+      signal='Divergence — Unstable Tape'; sigColor='var(--amber)'; sigBg='rgba(239,159,39,0.08)'; sigBorder='rgba(239,159,39,0.4)'; icon='◐';
+    }
+    const fmtChg = v => v===null ? '—' : (v>=0?'+':'')+v.toFixed(2)+'%';
+    const chgCol = v => v===null?'var(--text3)':v>=0?'var(--green)':'var(--red)';
+    return '<div class="mc" style="border:1px solid '+sigBorder+';background:'+sigBg+';border-radius:var(--radius);padding:12px 14px">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      + '<div style="font-size:13px;font-weight:700;color:var(--text)">'+r.label+'</div>'
+      + '<div style="font-size:10px;color:var(--text3);font-family:monospace">'+dateRange+'</div>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+      + '<div style="background:var(--bg4);border-radius:4px;padding:8px 10px">'
+      + '<div style="font-size:10px;color:var(--text3);margin-bottom:3px">Cap Weight <span style="opacity:.7">('+r.capSym+')</span></div>'
+      + '<div class="mono" style="font-size:18px;font-weight:700;color:'+chgCol(capChg)+'">'+fmtChg(capChg)+'</div>'
+      + '<div style="font-size:9px;color:var(--text3);margin-top:1px">week</div>'
+      + '</div>'
+      + '<div style="background:var(--bg4);border-radius:4px;padding:8px 10px">'
+      + '<div style="font-size:10px;color:var(--text3);margin-bottom:3px">Equal Weight <span style="opacity:.7">('+r.ewSym+')</span></div>'
+      + '<div class="mono" style="font-size:18px;font-weight:700;color:'+chgCol(ewChg)+'">'+fmtChg(ewChg)+'</div>'
+      + '<div style="font-size:9px;color:var(--text3);margin-top:1px">week</div>'
+      + '</div>'
+      + '</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:4px;background:'+sigBg+';border:1px solid '+sigBorder+'">'
+      + '<span style="font-size:20px;color:'+sigColor+'">'+icon+'</span>'
+      + '<span style="font-size:13px;font-weight:800;color:'+sigColor+';letter-spacing:.03em">'+signal+'</span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  // Update note with date context
+  document.getElementById('capitalWaveNote').innerHTML =
+    '<span style="color:var(--text3)">Week of '+dateRange+' &nbsp;|&nbsp; '
+    + '* Russell 2000 EW uses SCHA (Schwab US Small Cap, ~1,700 holdings) as proxy — no active pure equal-weight Russell 2000 ETF exists &nbsp;|&nbsp; </span>'
+    + '<span style="color:var(--green);font-weight:700">● Long Bullish</span>'
+    + '<span style="color:var(--text3)"> = both positive &nbsp;|&nbsp; </span>'
+    + '<span style="color:var(--amber);font-weight:700">◐ Divergence</span>'
+    + '<span style="color:var(--text3)"> = disagree = unstable tape &nbsp;|&nbsp; </span>'
+    + '<span style="color:var(--red);font-weight:700">● Confirmed Bearish</span>'
+    + '<span style="color:var(--text3)"> = both negative</span>';
+}
+
+// ── Discretionary Spending Indicators ──
+function renderDiscretionary(){
+  const grid = document.getElementById('discretGrid');
+  const now = new Date();
+  const qtr = 'Q' + Math.ceil((now.getMonth()+1)/3) + ' ' + now.getFullYear();
+  const el = document.getElementById('discretDateTag');
+  if(el) el.textContent = 'Sources: STR/CoStar, TSA, Travel Weekly, American Express, Yahoo Finance (DRI/CCL/MAR) · as of ' + qtr + ' · Updated quarterly (live tickers: real-time)';
+
+  function dCard(label, val, sub, sig, sigLabel, color){
+    return '<div class="mc" style="border-left:3px solid '+color+'">'
+      + '<div class="mc-label">'+label+'</div>'
+      + '<div class="mc-val" style="font-size:18px">'+val+'</div>'
+      + '<div class="mc-sub"><span class="sig '+sig+'">'+sigLabel+'</span></div>'
+      + '<div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.5">'+sub+'</div>'
+      + '</div>';
+  }
+
+  // Live-card placeholder — filled in by loadLiveTickerCard() below
+  function liveCardPlaceholder(domId, label){
+    return '<div class="mc" id="'+domId+'" style="border-left:3px solid var(--text3)">'
+      + '<div class="mc-label">'+label+'</div>'
+      + '<div class="mc-val" style="font-size:18px">Loading…</div>'
+      + '<div class="mc-sub"><span class="sig sig-gray">⏳ Fetching live data</span></div>'
+      + '</div>';
+  }
+
+  grid.innerHTML =
+    // Hotels
+    dCard('US Hotel Occupancy',  '~62%',
+      'STR/CoStar · 2026 forecast — slight dip from 2025\'s 63%. Luxury hotels +5.3% RevPAR; economy -1.8%.',
+      'sig-amber', '👁 Watch — softening', 'var(--amber)') +
+    dCard('Hotel ADR Trend',     '+0.9% YoY',
+      'Average daily rate growing slowly. RevPAR +0.5–0.6% — below historical averages. Demand cooling vs supply.',
+      'sig-amber', '📊 Modest growth', 'var(--amber)') +
+    dCard('Hotel Forward Bookings', 'Mixed',
+      '38.5% of advisors ahead of last year vs 38.5% behind (Travel Weekly, Mar 2026). Close-in bookings rising — guests booking last-minute.',
+      'sig-amber', '⚖️ Split outlook', 'var(--amber)') +
+    liveCardPlaceholder('hotelsCard', 'Hotels — Booking Demand (MAR)') +
+    // Airlines
+    dCard('TSA Checkpoint Volume', '+8% YoY',
+      'Apr 2026 vs Apr 2025. Holiday 2025 set records: 44.3M screened Dec 19–Jan 4. Demand remains structurally strong.',
+      'sig-green', '✅ Bullish — strong demand', 'var(--green)') +
+    dCard('Airline Booking Windows', 'Shrinking',
+      'Close-in bookings (1–3 months) at 25%+ of volume — up from 9.8% in 2024. Consumers more cautious, planning less far ahead.',
+      'sig-amber', '⚠️ Watch — booking window compression', 'var(--amber)') +
+    dCard('Business Travel',      '85% of Pre-COVID',
+      'Steady recovery. Bleisure (business + leisure extensions) doubling. Corporate meetings & events bookings up 28% in 2025.',
+      'sig-green', '📈 Recovering', 'var(--green)') +
+    // Cruise
+    dCard('Cruise Industry',      'Record Demand',
+      'Cruise lines reporting record advance bookings for 2026–2027. CCL, RCL, NCLH all guiding to higher yields and load factors.',
+      'sig-green', '🚢 Bullish — record bookings', 'var(--green)') +
+    dCard('Travel Spend Intent',  '+39–40% plan more',
+      'AmEx 2026 survey: 39–40% of global travelers plan to spend more on travel in 2026 vs 2025. Offset: 44% taking fewer trips due to cost-of-living.',
+      'sig-amber', '⚖️ Bifurcated consumer', 'var(--amber)') +
+    liveCardPlaceholder('cruiseCard', 'Cruise — Demand (CCL)') +
+    // Restaurants
+    liveCardPlaceholder('restaurantCard', 'Restaurants — Dining Out (DRI)');
+
+  loadLiveTickerCard('restaurantCard', '/api/macro/restaurants', 'Restaurants — Dining Out', 'same-store-sales / dining-out demand');
+  loadLiveTickerCard('cruiseCard', '/api/macro/cruise', 'Cruise — Demand', 'cruise booking demand');
+  loadLiveTickerCard('hotelsCard', '/api/macro/hotels', 'Hotels — Booking Demand', 'hotel booking demand');
+}
+
+// ── Generic live-ticker card loader, used for DRI/CCL/MAR discretionary-spending proxies ──
+function loadLiveTickerCard(domId, endpoint, label, proxyDescription){
+  fetch(API + endpoint).then(r => r.json()).then(d => {
+    const card = document.getElementById(domId);
+    if(!card) return;
+    if(d.error || d.change_1mo == null){
+      card.innerHTML = '<div class="mc-label">'+label+' ('+(d.ticker||'?')+')</div>'
+        + '<div class="mc-val" style="font-size:18px">—</div>'
+        + '<div class="mc-sub"><span class="sig sig-gray">⚠️ Data unavailable</span></div>'
+        + '<div style="font-size:10px;color:var(--text3);margin-top:4px">Could not fetch '+(d.ticker||'')+' price history.</div>';
+      return;
+    }
+    const fmtPct = v => (v==null ? '—' : (v>=0?'+':'')+v.toFixed(1)+'%');
+    const m1 = d.change_1mo, m3 = d.change_3mo, w52 = d.change_52wk;
+    // Signal: weight the shorter-term (1-month) move most heavily as the
+    // "is this still happening right now" read, with 3M/52W shown as context.
+    let sig, sigLabel, color;
+    if(m1 >= 2){ sig='sig-green'; sigLabel='✅ Increasing'; color='var(--green)'; }
+    else if(m1 <= -2){ sig='sig-red'; sigLabel='🔻 Decreasing'; color='var(--red)'; }
+    else { sig='sig-amber'; sigLabel='➡️ Roughly flat'; color='var(--amber)'; }
+    card.style.borderLeft = '3px solid '+color;
+    card.innerHTML = '<div class="mc-label">'+label+' ('+d.ticker+')</div>'
+      + '<div class="mc-val" style="font-size:18px">$'+d.price.toFixed(2)+'</div>'
+      + '<div class="mc-sub"><span class="sig '+sig+'">'+sigLabel+'</span></div>'
+      + '<div style="font-size:10px;color:var(--text3);margin-top:4px;line-height:1.6">'
+      + '1M: <strong style="color:var(--text2)">'+fmtPct(m1)+'</strong> &nbsp;·&nbsp; '
+      + '3M: <strong style="color:var(--text2)">'+fmtPct(m3)+'</strong> &nbsp;·&nbsp; '
+      + '52W: <strong style="color:var(--text2)">'+fmtPct(w52)+'</strong>'
+      + '<br>'+d.name+' as a '+proxyDescription+' proxy.'
+      + '</div>';
+  }).catch(e => {
+    const card = document.getElementById(domId);
+    if(card) card.innerHTML = '<div class="mc-label">'+label+'</div>'
+      + '<div class="mc-val" style="font-size:18px">—</div>'
+      + '<div class="mc-sub"><span class="sig sig-gray">⚠️ Could not reach server</span></div>';
+  });
+}
+
+async function loadAll(){
+  setStatus('Fetching macro data...', 'loading');
+  document.getElementById('pgbar').style.width = '10%';
+
+  // Step 1 — load core macro data (30s timeout)
+  let data;
+  try {
+    const r = await fetchWithTimeout(API + '/api/macro', 30000);
+    document.getElementById('pgbar').style.width = '60%';
+    if(!r.ok) throw new Error('Server returned ' + r.status);
+    data = await r.json();
+    macroData = data;
+  } catch(e) {
+    setStatus('Cannot reach server — is macro_server.py running? (' + e.message + ')', 'warn');
+    document.getElementById('pgbar').style.width = '0%';
+    return;
+  }
+
+  // Step 2 — render all sections immediately
+  document.getElementById('pgbar').style.width = '75%';
+  try { renderRates(data.rates); } catch(e){ console.warn('rates render error', e); }
+  try { renderVix(data.vix); } catch(e){ console.warn('vix render error', e); }
+  try { renderLiquidity(data.liquidity); } catch(e){ console.warn('liquidity render error', e); }
+  try { renderInflation(data.inflation); } catch(e){ console.warn('inflation render error', e); }
+  try { renderLabor(data.labor); } catch(e){ console.warn('labor render error', e); }
+  try { renderBreadth(data.breadth); } catch(e){ console.warn('breadth render error', e); }
+  try { renderSectors(data.sectors); } catch(e){ console.warn('sectors render error', e); }
+  try { renderAIPulse(); } catch(e){ console.warn('AI pulse render error', e); }
+  try { renderCapitalWave(); } catch(e){ console.warn('capital wave error', e); }
+  try { renderDiscretionary(); } catch(e){ console.warn('discretionary error', e); }
+  try { renderAILoopTest(); } catch(e){ console.warn('AI loop test error', e); }
+
+  const now = new Date();
+  document.getElementById('lastUp').textContent = 'Updated ' + now.toLocaleTimeString();
+  setStatus('Macro data loaded — fetching narrative...', 'loading');
+  document.getElementById('pgbar').style.width = '85%';
+
+  // Step 3 — narrative separately with 20s timeout (non-blocking)
+  try {
+    const nr = await fetchWithTimeout(API + '/api/macro/narrative', 20000);
+    if(nr.ok){
+      const nd = await nr.json();
+      renderNarrative(nd.narrative, nd.timestamp);
+    } else {
+      renderNarrative([], '');
+    }
+  } catch(e){
+    // Narrative timeout or error — don't block, just show placeholder
+    document.getElementById('narrativeText').innerHTML =
+      '<span style="color:var(--text3);font-style:italic;font-size:12px">Narrative timed out — data sections loaded above are current.</span>';
+  }
+
+  document.getElementById('pgbar').style.width = '100%';
+  setStatus('All macro data loaded.', 'ok');
+  setTimeout(() => { document.getElementById('statusEl').style.display = 'none'; }, 4000);
+}
+
+loadAll();
+</script>
+
+
+</body>
+</html>

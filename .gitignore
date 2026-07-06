@@ -1,0 +1,6 @@
+   .env
+   fmp_cache/
+   edgar_cache/
+   unsplash_cache/
+   __pycache__/
+   *.pyc
