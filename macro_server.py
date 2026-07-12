@@ -499,7 +499,7 @@ EDGAR_CACHE_TTL_DAYS = 30  # N-PORT is monthly — no need to refetch more often
 # Free OpenFIGI API key — get one at openfigi.com/api (instant, no payment info).
 # Raises batch size from 10->100 and removes the slow rate limit.
 # Leave blank to fall back to the slower unauthenticated tier.
-OPENFIGI_API_KEY = ''
+OPENFIGI_API_KEY = os.environ.get('OPENFIGI_API_KEY', '')
 
 # Free Business Quant API key — get one at businessquant.com (no credit card).
 # Used specifically for the Dividends endpoint, which gives us ex_date AND
@@ -1441,6 +1441,137 @@ def resolve_cusips_via_openfigi(holdings, api_key=None):
         time.sleep(sleep_between)
 
     print(f'  [EDGAR] OpenFIGI resolved {resolved}/{len(holdings)} holdings')
+    holdings = apply_adr_overrides(holdings)
+    holdings = apply_openfigi_name_search_fallback(holdings, api_key)
+    return holdings
+
+
+# ── Known-name ADR override table ──────────────────────────────────────
+# OpenFIGI resolves a foreign holding's CUSIP/ISIN to whatever exchange
+# that specific identifier belongs to — for most large European/UK/Asian
+# names, N-PORT filings carry the LOCAL listing's identifier (e.g.
+# AstraZeneca's London Stock Exchange shares), which is a genuinely
+# different security from its US-traded ADR, not just a different label
+# for the same one. OpenFIGI has no "same company, other exchange" bridge,
+# so these correctly resolve to an untradeable-for-us ticker or fail
+# entirely — hence showing as "no ticker" / grey in the treemap even
+# though a real, liquid US ADR exists for many of them.
+# This table corrects the highest-weight, most commonly-held names by
+# matching on company name (case-insensitive substring) since that's
+# reliably present even when CUSIP/ISIN resolution fails outright. Not
+# exhaustive — extend as more no-ticker holdings turn out to have ADRs.
+ADR_NAME_OVERRIDES = [
+    ('astrazeneca', 'AZN'), ('british american tobacco', 'BTI'),
+    ('totalenergies', 'TTE'), ('linde plc', 'LIN'), ('linde ag', 'LIN'),
+    ('nestle', 'NSRGY'), ('zurich insurance', 'ZURVY'), ('iberdrola', 'IBDRY'),
+    ('industria de diseno textil', 'IDEXY'), ('inditex', 'IDEXY'),
+    ('marubeni', 'MARUY'), ('dbs group', 'DBSDY'), ('koninklijke kpn', 'KKPNY'),
+    ('novartis', 'NVS'), ('roche holding', 'RHHBY'), ('novo nordisk', 'NVO'),
+    ('sap se', 'SAP'), ('asml holding', 'ASML'), ('shell plc', 'SHEL'),
+    ('unilever', 'UL'), ('diageo', 'DEO'), ('glaxosmithkline', 'GSK'),
+    ('gsk plc', 'GSK'), ('bp plc', 'BP'), ('hsbc holdings', 'HSBC'),
+    ('toyota motor', 'TM'), ('sony group', 'SONY'), ('sanofi', 'SNY'),
+    ('lvmh', 'LVMUY'), ('siemens ag', 'SIEGY'), ('allianz', 'ALIZY'),
+    ('deutsche telekom', 'DTEGY'), ('banco santander', 'SAN'),
+    ('rio tinto', 'RIO'), ('bhp group', 'BHP'), ('anheuser-busch inbev', 'BUD'),
+    ('philips', 'PHG'), ('reckitt benckiser', 'RBGLY'), ('vodafone', 'VOD'),
+    ('l\'oreal', 'LRLCY'), ('loreal', 'LRLCY'), ('schneider electric', 'SBGSY'),
+]
+
+
+def apply_adr_overrides(holdings):
+    """Post-processing pass: for any holding OpenFIGI left without a usable
+    US ticker (no_ticker=True, or a foreign-exchange ticker our pricing
+    pipeline can't use), check its company name against the known-ADR
+    table and fill in the real US-tradeable ticker where we have one."""
+    applied = 0
+    for h in holdings:
+        if h.get('ticker') and not h.get('no_ticker'):
+            continue  # already has a usable US ticker, leave it alone
+        name = (h.get('name') or h.get('n') or '').lower()
+        if not name:
+            continue
+        for needle, adr_ticker in ADR_NAME_OVERRIDES:
+            if needle in name:
+                h['ticker'] = adr_ticker
+                h['no_ticker'] = False
+                h['adr_override_applied'] = True
+                applied += 1
+                break
+    if applied:
+        print(f'  [ADR-Override] Filled in {applied} US ADR ticker(s) for holdings OpenFIGI couldn\'t resolve to a US-tradeable security')
+    return holdings
+
+
+# Exchange codes OpenFIGI uses for US-tradeable listings (primary US
+# exchanges plus OTC/pink-sheet ADR listings, which is where most
+# European/Asian ADRs without a NYSE/Nasdaq listing actually trade).
+_US_TRADEABLE_EXCHANGES = {'US', 'UN', 'UQ', 'UA', 'UW', 'UR', 'UD', 'UF', 'UV', 'PQ'}
+
+
+def search_openfigi_by_name(name, api_key, max_results_checked=5):
+    """General-purpose fallback: search OpenFIGI by company NAME (not
+    CUSIP/ISIN) for a US-tradeable equivalent — covers any company with a
+    US ADR/dual-listing, not just the ones in the static override table
+    above. Requires an OpenFIGI API key: the /v3/search endpoint (unlike
+    /v3/mapping) doesn't accept unauthenticated requests at all. Returns
+    a ticker string or None."""
+    if not api_key or not name:
+        return None
+    try:
+        r = requests.post(
+            'https://api.openfigi.com/v3/search',
+            headers={'Content-Type': 'application/json', 'X-OPENFIGI-APIKEY': api_key},
+            json={'query': name, 'securityType': 'Common Stock'},
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return None
+        results = (r.json() or {}).get('data', [])
+        for cand in results[:max_results_checked]:
+            if cand.get('exchCode') in _US_TRADEABLE_EXCHANGES and cand.get('ticker'):
+                return cand['ticker']
+    except Exception:
+        return None
+    return None
+
+
+def apply_openfigi_name_search_fallback(holdings, api_key, max_lookups=15):
+    """Runs search_openfigi_by_name for whatever holdings are STILL
+    unresolved after both the direct CUSIP/ISIN mapping and the static ADR
+    table above. This is the general-purpose version of that table — it can
+    find a US ADR for essentially any company that has one, not just the
+    ~35 names hardcoded there. Capped at `max_lookups` per fund (search is
+    one HTTP call per holding, not batched like CUSIP mapping, so an
+    unbounded version could meaningfully slow down a fund with many
+    unresolved foreign names) and skipped entirely with no API key, since
+    OpenFIGI's search endpoint rejects unauthenticated requests outright."""
+    if not api_key:
+        print('  [OpenFIGI-Search] No API key configured (OPENFIGI_API_KEY is empty) — '
+              'skipping name-search fallback. Get a free key at openfigi.com to enable this.')
+        return holdings
+
+    still_unresolved = [h for h in holdings if not h.get('ticker') or h.get('no_ticker')]
+    still_unresolved.sort(key=lambda h: h.get('pct_of_fund', 0), reverse=True)
+    checked = still_unresolved[:max_lookups]
+
+    applied = 0
+    for h in checked:
+        name = h.get('name') or h.get('n')
+        if not name:
+            continue
+        ticker = search_openfigi_by_name(name, api_key)
+        if ticker:
+            h['ticker'] = ticker
+            h['no_ticker'] = False
+            h['adr_override_applied'] = True
+            h['adr_via_search'] = True
+            applied += 1
+        time.sleep(0.3)  # basic rate-limit courtesy between individual search calls
+
+    if applied:
+        print(f'  [OpenFIGI-Search] Resolved {applied} additional US ticker(s) via name search '
+              f'(checked top {len(checked)} of {len(still_unresolved)} still-unresolved holdings by weight)')
     return holdings
 
 
@@ -4086,6 +4217,7 @@ def portfolio_upload():
         'div_received': col_index('Div. received'),
         'realized_pl': col_index('Realized P&L'),
         'total_profit': col_index('Total profit', 0),
+        'irr': col_index('IRR'),
     }
 
     def get(row, key):
@@ -4161,6 +4293,7 @@ def portfolio_upload():
             'div_received': clean_money(get(row, 'div_received')),
             'realized_pl': clean_money(get(row, 'realized_pl')),
             'total_profit': clean_money(get(row, 'total_profit')),
+            'irr': clean_num(get(row, 'irr')),
         })
 
     if not holdings:
@@ -4261,10 +4394,16 @@ def portfolio_analysis():
     def period_return(series, days):
         if series is None or len(series) < 2:
             return None
+        # Honesty fix: if the available history doesn't actually cover the
+        # requested window (e.g. portfolio_series is truncated to start at
+        # a recently-added holding's inception), don't silently substitute
+        # whatever shorter window IS available and label it as if it were
+        # the full period — that's how TTM/1Y/3Y all ended up showing the
+        # identical number when a portfolio's true combined history was
+        # under a year old. Return None (renders as "—") instead.
         if len(series) <= days:
-            sub = series
-        else:
-            sub = series.iloc[-days:]
+            return None
+        sub = series.iloc[-days:]
         if len(sub) < 2 or sub.iloc[0] == 0:
             return None
         return round(((sub.iloc[-1] - sub.iloc[0]) / sub.iloc[0]) * 100, 2)
@@ -4666,6 +4805,18 @@ def portfolio_analysis():
         yv = sum(h['cv'] for h in yield_holdings)
         weighted_yield = round(sum(h['cv']*h['yield'] for h in yield_holdings) / yv, 2) if yv else None
 
+    # ── Weighted IRR (Snowball's own money-weighted IRR per holding) ──
+    # Positions with a near-zero cost basis or very short holding period can
+    # produce absurd annualized figures (e.g. 300,000%+) that would swamp a
+    # simple value-weighted average — these are excluded from the aggregate
+    # (a +/-500% cap comfortably covers any real annualized return) but each
+    # holding's raw IRR is still shown as-is in the holdings detail table.
+    irr_holdings = [h for h in holdings if h.get('irr') is not None and abs(h['irr']) <= 500]
+    weighted_irr = None
+    if irr_holdings:
+        iv = sum(h['cv'] for h in irr_holdings)
+        weighted_irr = round(sum(h['cv']*h['irr'] for h in irr_holdings) / iv, 2) if iv else None
+
     # ── Monthly Distributions ("Passive Income" card) + Dividends tab data ──
     # Sums what was *actually paid* across every holding, using each
     # ticker's real dividend payment history (ex-div dates + per-share
@@ -4862,6 +5013,7 @@ def portfolio_analysis():
             'realized_pl': h.get('realized_pl'),
             'div_received': h.get('div_received'),
             'total_profit': h.get('total_profit'),
+            'irr': h.get('irr'),
         })
     holdings_detail.sort(key=lambda x: (-x['value']))
 
@@ -4875,6 +5027,7 @@ def portfolio_analysis():
         'holdings_detail': holdings_detail,
         'weighted_beta': weighted_beta,
         'weighted_yield': weighted_yield,
+        'weighted_irr': weighted_irr,
         'monthly_distributions': monthly_distributions,
         'annual_income': annual_income,
         'daily_income': daily_income,
@@ -4895,6 +5048,504 @@ def portfolio_analysis():
         'growth_chart_start_date': str(portfolio_start.date()) if portfolio_start is not None else None,
         'benchmarks': benchmarks,
         'timestamp': datetime.now().strftime('%B %d, %Y %I:%M %p'),
+    })
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# RISK PROFILE BACKTEST v1.0  —  "Risk Reversal" page
+# ═══════════════════════════════════════════════════════════════════════
+# Approach: category/factor PROXY SUBSTITUTION (not full factor-regression
+# decomposition). For any holding whose real price history doesn't reach
+# back to the backtest start date, we splice in a long-history proxy ETF
+# matched by Morningstar-style category, rebased to connect seamlessly at
+# the point where the holding's real data begins. This is the same
+# methodology fund providers use to show "since inception" comparisons for
+# young funds — approximate by asset-class/style, not a precise replica of
+# any specific fund's factor tilts. Every synthetic segment is disclosed
+# in the response so the UI can visibly flag it, never presented as if it
+# were the fund's actual historical price.
+#
+# Known data-availability gaps (disclosed to the user, not hidden):
+#   - QQQ (Nasdaq 100) inception is 3/1999 — effectively full 2000 coverage.
+#   - EFA (international/EAFE proxy) inception is 8/2001 — ~19 months short
+#     of a full 2000 start; that gap is left blank rather than guessed at.
+#   - Crypto/digital-asset holdings have no pre-2009 equivalent and are
+#     never backfilled — real data only, from actual inception forward.
+# ═══════════════════════════════════════════════════════════════════════
+
+CATEGORY_PROXY_MAP = {
+    # category (as stored on the holding) -> (proxy ticker, proxy inception ~year, note)
+    'Large Growth':          ('IWF', 2000, 'Russell 1000 Growth'),
+    'Large Value':           ('IWD', 2000, 'Russell 1000 Value'),
+    'Large Blend':           ('SPY', 1993, 'S&P 500'),
+    'Small Growth':          ('IWO', 2000, 'Russell 2000 Growth'),
+    'Small Value':           ('IWN', 2000, 'Russell 2000 Value'),
+    'Small Blend':           ('IWM', 2000, 'Russell 2000'),
+    'Mid Growth':            ('IWP', 2001, 'Russell Midcap Growth'),
+    'Mid Value':             ('IWS', 2001, 'Russell Midcap Value'),
+    'Mid Blend':             ('IWR', 2001, 'Russell Midcap'),
+    'Foreign Large Blend':   ('EFA', 2001, 'MSCI EAFE (gap: 2000-2001 not covered)'),
+    'Emerging Markets':      ('EEM', 2003, 'MSCI Emerging Markets (gap: 2000-2003 not covered)'),
+    'Real Estate':           ('IYR', 2000, 'US Real Estate'),
+    'Intermediate Bond':     ('AGG', 2003, 'US Aggregate Bond (gap: 2000-2003 not covered)'),
+    'High Yield Bond':       ('HYG', 2007, 'US High Yield Bond (gap: 2000-2007 not covered)'),
+    'Commodities Focused':   ('GLD', 2004, 'Gold (gap: 2000-2004 not covered)'),
+    'Utilities':             ('XLU', 1998, 'Utilities Sector'),
+    'Energy Limited Partner':('XLE', 1998, 'Energy Sector'),
+    'Equity Energy':         ('XLE', 1998, 'Energy Sector'),
+    'Financial':             ('XLF', 1998, 'Financials Sector'),
+    'Technology':            ('XLK', 1998, 'Technology Sector'),
+    'Health':                ('XLV', 1998, 'Healthcare Sector'),
+    'Consumer Cyclical':     ('XLY', 1998, 'Consumer Discretionary Sector'),
+    'Consumer Defensive':    ('XLP', 1998, 'Consumer Staples Sector'),
+    'Industrials':           ('XLI', 1998, 'Industrials Sector'),
+    'Basic Materials':       ('XLB', 1998, 'Materials Sector'),
+    'Communications':        ('SPY', 1993, 'No pre-2018 comm. sector ETF exists — broad market fallback'),
+    'Equity Income':         ('DVY', 2003, 'Dow Jones Select Dividend (gap: 2000-2003 not covered)'),
+    'Derivative Income':     ('SPY', 1993, 'Underlying-index proxy — ignores the actual fund\'s options overlay, so real drawdown/volatility will differ'),
+    'Digital Assets':        (None, None, 'No pre-2009 equivalent exists — real data only, from actual inception'),
+    'Trading--Leveraged Equity': (None, None, 'Leveraged/inverse products are not meaningfully proxyable — real data only, from actual inception'),
+}
+DEFAULT_PROXY = ('SPY', 1993, 'No category match — broad-market fallback')
+
+# ── Ticker-specific overrides ──────────────────────────────────────────
+# Snowball's own category field is too generic for most funds (95 of ~180
+# holdings are simply tagged "Funds" with no further detail), so category
+# matching alone routed almost everything to the SPY default — useless for
+# comparing "your portfolio" against "the S&P 500" if your portfolio *is*
+# secretly SPY everywhere. This map identifies specific known tickers by
+# their actual underlying exposure instead, which is more accurate:
+#   - Single-stock covered-call/income funds (YieldMax-style) -> the real
+#     underlying stock (e.g. MSFY -> MSFT), which itself may still need a
+#     category-proxy for its own pre-inception period.
+#   - Leveraged, inverse, and crypto-linked products -> None (no proxy —
+#     leveraged decay and crypto's post-2009 existence make any synthetic
+#     backfill actively misleading rather than approximately useful).
+#   - Sector/thematic funds -> the matching sector SPDR.
+#   - Style funds (growth/value/dividend) -> the matching Russell style ETF.
+# Not exhaustive — anything not listed here falls through to the category
+# map, then to the SPY default.
+TICKER_PROXY_OVERRIDE = {
+    # Thematic ETFs -> corrected per user review (Proxy_Suggestions_for_Backtesting.xlsx)
+    'AIS': ('BOTZ', 'AI/Robotics thematic'), 'BLOX': ('BLOK', 'Blockchain thematic'),
+    'CGDG': ('VIG', 'Dividend growth style'), 'CGDV': ('VIG', 'Dividend growth style'),
+    'DTCR': ('SRVR', 'Data center REIT thematic'),
+    'AIRR': ('PPA', 'Industrial/aerospace thematic'), 'FLOT': ('FLTR', 'Floating-rate bond'),
+    'AIQ': ('ROBO', 'AI/Robotics thematic — corrected from XLK per user review'),
+    'JAAA': ('AAA', 'AAA CLO — corrected proxy per user review'),
+
+    # Cash-equivalent behavior — no synthetic backfill needed
+    'MLPI': (None, 'Cash equivalent — no backfill needed'),
+    # Single-stock income/covered-call funds -> real underlying stock
+    'MSFY': ('MSFT', 'Underlying: Microsoft'), 'MSFO': ('MSFT', 'Underlying: Microsoft'),
+    'NVDY': ('NVDA', 'Underlying: Nvidia'), 'NVDX': (None, 'Leveraged Nvidia — no proxy'),
+    'NVII': ('NVDA', 'Underlying: Nvidia'), 'NVIT': ('NVDA', 'Underlying: Nvidia'),
+    'AMDY': ('AMD', 'Underlying: AMD'), 'AMDL': (None, 'Leveraged AMD — no proxy'),
+    'CONY': ('COIN', 'Underlying: Coinbase (COIN itself is young — chains to category proxy)'),
+    'FBY': ('META', 'Underlying: Meta Platforms'),
+    'NFLY': ('NFLX', 'Underlying: Netflix'),
+    'TSLP': ('TSLA', 'Underlying: Tesla'),
+    'GOOP': ('GOOGL', 'Underlying: Alphabet'), 'GOOX': ('GOOGL', 'Underlying: Alphabet'),
+    'SMCY': ('SMCI', 'Underlying: Super Micro Computer'), 'SMCL': (None, 'Leveraged Super Micro — no proxy'),
+    'CVNY': ('CVNA', 'Underlying: Carvana'),
+    'PLTY': ('PLTR', 'Underlying: Palantir'), 'PLTI': ('PLTR', 'Underlying: Palantir'),
+    'PLTW': ('PLTR', 'Underlying: Palantir'), 'PLTM': ('PLTR', 'Underlying: Palantir'),
+    'TSMY': ('TSM', 'Underlying: Taiwan Semiconductor (ADR)'),
+    'XOMO': ('XOM', 'Underlying: Exxon Mobil'),
+    'MSTY': ('MSTR', 'Underlying: MicroStrategy'), 'MSTU': (None, 'Leveraged MicroStrategy — no proxy'),
+    'HOOY': ('HOOD', 'Underlying: Robinhood'),
+    'CHPY': ('SOXX', 'Semiconductor sector — corrected from CHAT per user review'),
+    'AMZY': ('AMZN', 'Underlying: Amazon'),
+    'QQQM': ('QQQ', 'Direct Nasdaq 100 tracker (not a derivative-income fund) — corrected from SPY default'),
+    'BTCI': ('BTC-USD', 'Bitcoin option-income overlay — chains to no-proxy crypto handling for pre-2009'),
+    'TSPY': ('SPY', 'S&P 500-based option-income fund'),
+    'OVL': ('SPY', 'Covered PUT fund on S&P 500 — broad market proxy'),
+
+    # Broad-index derivative-income funds — SPY/QQQ IS the correct proxy here
+    'SPYI': ('SPY', 'S&P 500 option-income overlay — index itself is the right proxy'),
+    'QQQI': ('QQQ', 'Nasdaq 100 option-income overlay'),
+    'JEPQ': ('QQQ', 'Nasdaq 100 option-income overlay'),
+    'JPMO': ('SPY', 'S&P 500-based option-income fund'),
+    'QDTE': ('QQQ', 'Nasdaq 100 0DTE option-income overlay'),
+    'TDAQ': ('QQQ', 'Nasdaq 100-linked fund'),
+    'SPMO': ('SPY', 'S&P 500 momentum — broad market proxy reasonable'),
+    'QQQY': ('QQQ', 'Nasdaq 100 option-income overlay'),
+    'GPTY': ('SPY', 'Diversified multi-asset income fund — broad market proxy'),
+    'ULTY': ('SPY', 'Diversified multi-stock high-income fund — broad market proxy'),
+    'YMAX': ('SPY', 'Diversified multi-stock high-income fund — broad market proxy'),
+
+    # Leveraged / inverse / crypto — no meaningful synthetic backfill
+    'SQQQ': (None, '3x inverse Nasdaq — no proxy'), 'SSO': (None, '2x S&P 500 — no proxy'),
+    'UGL': (None, '2x gold — no proxy'), 'AGQ': (None, '2x silver — no proxy'),
+    'BITX': (None, 'Leveraged bitcoin — no proxy'), 'BITU': (None, 'Leveraged bitcoin — no proxy'),
+    'BITI': (None, 'Inverse bitcoin — no proxy'), 'BITO': (None, 'Bitcoin futures — no proxy'),
+    'BTC-USD': (None, 'No pre-2009 equivalent'), 'YBIT': (None, 'Bitcoin option-income — no pre-2009 equivalent'),
+    'ETHD': (None, 'Leveraged Ethereum — no proxy'), 'ETHA': (None, 'Ethereum-linked — no pre-2015 equivalent'),
+    'DGLO': (None, 'Leveraged gold — no proxy'), 'KGLD': (None, 'Leveraged gold — no proxy'),
+    'KSLV': (None, 'Leveraged silver — no proxy'),
+
+    # Sector / thematic -> matching sector SPDR
+    'CHAT': ('XLK', 'AI thematic'),
+    'IGV': ('XLK', 'Software sector'),
+    'PJP': ('XLV', 'Pharma sector'), 'ITA': ('XLI', 'Aerospace & defense sector'),
+    'PAVE': ('IGF', 'Global infrastructure — corrected from XLI per user review'),
+    'AMLP': ('XLE', 'MLP/energy midstream'), 'VLO': ('XLE', 'Energy sector'),
+    'KMI': ('XLE', 'Energy/midstream'), 'ET': ('XLE', 'Energy/midstream'),
+    'EQT': ('XLE', 'Energy sector'), 'DVN': ('XLE', 'Energy sector'), 'LNG': ('XLE', 'Energy sector'),
+    'VICI': ('IYR', 'REIT'), 'STWD': ('IYR', 'REIT/mortgage'), 'RLTY': ('IYR', 'Real estate thematic'),
+
+    # Style funds -> matching Russell style ETF
+    'VUG': ('IWF', 'Large growth style'), 'MGK': ('IWF', 'Large growth style'),
+    'QGRW': ('IWF', 'Growth style'), 'MOAT': ('SPY', 'Wide-moat — broad market proxy reasonable'),
+    'DGRO': ('DVY', 'Dividend growth style'), 'DGRW': ('DVY', 'Dividend growth style'),
+    'VYM': ('DVY', 'High dividend yield style'), 'SCHD': ('DVY', 'Dividend style'),
+    'SCHY': ('DVY', 'International dividend — imperfect proxy, US dividend used'),
+
+    # Precious metals (no great pre-2004 proxy for silver specifically)
+    'SLV': ('GLD', 'Precious metals — gold used as closest available proxy'),
+    'GLDY': ('GLD', 'Gold option-income overlay'), 'GLDW': ('GLD', 'Gold option-income overlay'),
+    'IAUM': ('GLD', 'Gold'),
+
+    # Cash-like / ultra-short — behave essentially flat, low importance
+    'SPAXX': (None, 'Money market — effectively flat, no backfill needed'),
+    'SGOV': (None, 'Short-term treasury — effectively flat, no backfill needed'),
+    'CSHI': (None, 'Ultra-short bond — effectively flat, no backfill needed'),
+    'VTIP': ('AGG', 'TIPS/short bond'),
+}
+
+# Covered-call, covered-put, and other option-overlay/derivative-income
+# funds structurally underperform their raw underlying over time (selling
+# calls caps upside; selling puts caps some downside but forgoes rally
+# participation). Per user direction: apply a flat 80% participation rate
+# (i.e. a 20% haircut) to the SYNTHETIC pre-inception segment's simulated
+# returns for these tickers — real data, once the fund actually exists, is
+# used as-is and is never adjusted.
+UNDERPERFORM_20PCT = {
+    'MSFY', 'MSFO', 'NVDY', 'NVII', 'NVIT', 'AMDY', 'CONY', 'FBY', 'NFLY', 'TSLP',
+    'GOOP', 'GOOX', 'SMCY', 'CVNY', 'PLTY', 'PLTI', 'PLTW', 'PLTM', 'TSMY', 'XOMO',
+    'MSTY', 'HOOY', 'CHPY', 'AMZY', 'SPYI', 'QQQI', 'JEPQ', 'JPMO', 'QDTE', 'TDAQ',
+    'QQQY', 'GPTY', 'ULTY', 'YMAX', 'BTCI', 'OVL', 'TSPY',
+}
+
+# Mirror of the above: funds expected to structurally OUTperform their proxy
+# during the synthetic pre-inception period (e.g. a momentum-factor fund
+# proxied against plain SPY should reflect the historical momentum premium,
+# not just track the index flat). 120% participation — same mechanism,
+# opposite direction. Real data is never adjusted.
+OVERPERFORM_20PCT = {
+    'SPMO',
+}
+
+BACKTEST_BENCHMARKS = {
+    'sp500':  {'ticker': 'SPY', 'label': 'S&P 500',    'inception_note': None},
+    'dow30':  {'ticker': 'DIA', 'label': 'Dow 30',      'inception_note': None},
+    'nasdaq100': {'ticker': 'QQQ', 'label': 'Nasdaq 100', 'inception_note': 'QQQ inception 3/1999 — effectively full 2000 coverage'},
+    'intl':   {'ticker': 'EFA', 'label': 'International (EAFE)', 'inception_note': 'EFA inception 8/2001 — 2000 through mid-2001 not covered'},
+}
+
+
+def get_proxy_for_holding(h):
+    """Return (proxy_ticker_or_None, note) for a holding. Checks the
+    ticker-specific override table first (far more accurate for this data
+    source, since Snowball's own category field is too generic to route on
+    for most holdings), then falls back to Snowball's 'category' field,
+    then to a broad-market default."""
+    t = (h.get('t') or '').strip().upper()
+    if t in TICKER_PROXY_OVERRIDE:
+        return TICKER_PROXY_OVERRIDE[t]
+    cat = (h.get('category') or '').strip()
+    if cat in CATEGORY_PROXY_MAP:
+        ticker, _, note = CATEGORY_PROXY_MAP[cat]
+        return ticker, note
+    ticker, _, note = DEFAULT_PROXY
+    return ticker, note
+
+
+def compute_drawdowns(dates, values, top_n=5):
+    """Given a chronological price/index series, find the top N distinct
+    peak-to-trough drawdown episodes: the running peak, the trough that
+    followed it, the % decline, and — if the series has since traded back
+    above that prior peak — the recovery date and days-to-recover. Episodes
+    are merged so overlapping/duplicate drawdowns from the same running
+    peak aren't double-counted."""
+    if not values or len(values) < 2:
+        return []
+
+    episodes = []
+    peak_val, peak_idx = values[0], 0
+    trough_val, trough_idx = values[0], 0
+    in_drawdown = False
+
+    for i in range(1, len(values)):
+        v = values[i]
+        if v >= peak_val:
+            # New high — close out any open drawdown episode first
+            if in_drawdown:
+                episodes.append((peak_idx, trough_idx, i, peak_val, trough_val))
+            peak_val, peak_idx = v, i
+            trough_val, trough_idx = v, i
+            in_drawdown = False
+        elif v < trough_val or not in_drawdown:
+            trough_val, trough_idx = v, i
+            in_drawdown = True
+
+    if in_drawdown:
+        episodes.append((peak_idx, trough_idx, None, peak_val, trough_val))
+
+    results = []
+    for peak_idx, trough_idx, recover_idx, peak_val, trough_val in episodes:
+        dd_pct = round((trough_val - peak_val) / peak_val * 100, 2)
+        days_to_recover = None
+        if recover_idx is not None:
+            trough_date = datetime.strptime(dates[trough_idx], '%Y-%m-%d')
+            recover_date = datetime.strptime(dates[recover_idx], '%Y-%m-%d')
+            days_to_recover = (recover_date - trough_date).days
+        results.append({
+            'peak_date': str(dates[peak_idx]),
+            'trough_date': str(dates[trough_idx]),
+            'drawdown_pct': dd_pct,
+            'recovery_date': str(dates[recover_idx]) if recover_idx is not None else None,
+            'days_to_recover': days_to_recover,
+            'recovered': recover_idx is not None,
+        })
+    results.sort(key=lambda x: x['drawdown_pct'])  # most negative first
+    return results[:top_n]
+
+
+@app.route('/api/portfolio/backtest', methods=['POST'])
+def portfolio_backtest():
+    """Wrapper: catches any exception in the actual backtest logic and
+    returns it as JSON (with the full traceback) instead of letting Flask's
+    default 500 HTML error page reach the frontend — that HTML page is what
+    was causing the "Unexpected token '<'" parse error client-side."""
+    try:
+        return _portfolio_backtest_impl()
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print('  [Backtest] ERROR:', tb)
+        return jsonify({'error': f'{type(e).__name__}: {e}', 'traceback': tb}), 500
+
+
+def _portfolio_backtest_impl():
+    """Risk Profile Backtest v1.0 — Option A (category-proxy substitution).
+    Builds a synthetic portfolio value series back to `start_date` (as far
+    as 2000-01-01), splicing each holding's real price history onto a
+    long-history category proxy for any period before that holding's own
+    inception. Portfolio weights are held static at today's allocation for
+    the entire backtest window — a real simplification, disclosed in the
+    response — since we have no historical record of what your actual
+    allocation was at any past date."""
+    data = load_portfolio()
+    if not data or not data.get('holdings'):
+        return jsonify({'error': 'No portfolio uploaded yet'}), 404
+
+    from flask import request as freq
+    req = freq.get_json(silent=True) or {}
+    start_date = req.get('start_date', '2000-01-01')
+    end_date = req.get('end_date') or None
+    selected_benchmarks = req.get('benchmarks', list(BACKTEST_BENCHMARKS.keys()))
+
+    holdings = [h for h in data['holdings'] if h.get('t') and h.get('cv')]
+    total_value = sum(h['cv'] for h in holdings)
+    if not total_value:
+        return jsonify({'error': 'No valued holdings to backtest'}), 404
+
+    # ── Gather every real ticker + every proxy ticker we'll need ──
+    holding_tickers = sorted(set(h['t'] for h in holdings))
+    proxy_assignments = {}  # ticker -> (proxy_ticker_or_None, note)
+    proxy_tickers_needed = set()
+    for h in holdings:
+        proxy, note = get_proxy_for_holding(h)
+        proxy_assignments[h['t']] = (proxy, note)
+        if proxy:
+            proxy_tickers_needed.add(proxy)
+
+    benchmark_tickers = {k: v['ticker'] for k, v in BACKTEST_BENCHMARKS.items() if k in selected_benchmarks}
+    all_needed = sorted(set(holding_tickers) | proxy_tickers_needed | set(benchmark_tickers.values()))
+
+    try:
+        # BUGFIX: always fetch from a fixed early anchor (1990), never from
+        # the user's requested `start_date`. Downloading with start=start_date
+        # was clipping EVERY ticker — real holdings AND proxies alike — to
+        # the same window, which made a proxy's history look like it "starts
+        # at the same time as the fund itself" even when the proxy genuinely
+        # has decades more history. That false negative was why almost every
+        # holding fell back to "no proxy available" regardless of category —
+        # the splice logic never got a chance to see the real inception gap.
+        # The requested start_date is applied later, only when trimming the
+        # final combined series for display.
+        FETCH_ANCHOR = '1990-01-01'
+        raw = yf.download(all_needed, start=FETCH_ANCHOR, auto_adjust=True, progress=False,
+                           group_by='ticker' if len(all_needed) > 1 else None, threads=True)
+    except Exception as e:
+        return jsonify({'error': f'Price history download failed: {e}'}), 502
+
+    def series_for(ticker):
+        try:
+            if len(all_needed) == 1:
+                s = raw['Close'].dropna()
+            else:
+                s = raw[ticker]['Close'].dropna()
+            return s
+        except Exception:
+            return pd.Series(dtype=float)
+
+    # ── Build each holding's spliced (real + synthetic pre-inception) series ──
+    holding_series = {}
+    splice_info = {}
+    for h in holdings:
+        t = h['t']
+        real = series_for(t)
+        proxy_ticker, note = proxy_assignments[t]
+
+        if real.empty:
+            splice_info[t] = {'proxy_used': None, 'note': 'No price data available at all — excluded from backtest'}
+            continue
+
+        if proxy_ticker is None:
+            # No sensible proxy (crypto, leveraged products) — real data only
+            holding_series[t] = real
+            splice_info[t] = {'proxy_used': None, 'note': note, 'real_data_from': str(real.index[0].date())}
+            continue
+
+        proxy_series = series_for(proxy_ticker)
+        real_start = real.index[0]
+
+        if proxy_series.empty or proxy_series.index[0] >= real_start:
+            # Proxy doesn't actually extend earlier than the real data — no splice possible
+            holding_series[t] = real
+            splice_info[t] = {'proxy_used': None, 'note': 'Proxy has no earlier history than the fund itself', 'real_data_from': str(real_start.date())}
+            continue
+
+        # Rebase the proxy's pre-inception segment so it joins the real
+        # series exactly at real_start (no discontinuity in the combined line).
+        # For covered-call/covered-put/option-overlay funds, the proxy's
+        # day-to-day RETURNS (not just its price level) are dampened to an
+        # 80% participation rate first — approximating that these funds
+        # structurally underperform their raw underlying, per user direction —
+        # then the whole path is rescaled to land exactly on real.iloc[0].
+        proxy_pre = proxy_series[proxy_series.index < real_start]
+        if t in UNDERPERFORM_20PCT:
+            participation = 0.8
+        elif t in OVERPERFORM_20PCT:
+            participation = 1.2
+        else:
+            participation = 1.0
+        if len(proxy_pre) >= 2:
+            proxy_returns = proxy_pre.pct_change().fillna(0) * participation
+            cum_path = (1 + proxy_returns).cumprod()
+            synthetic_pre = cum_path * (real.iloc[0] / cum_path.iloc[-1])
+        else:
+            scale = real.iloc[0] / proxy_pre.iloc[-1] if len(proxy_pre) else 1
+            synthetic_pre = proxy_pre * scale
+        spliced = pd.concat([synthetic_pre, real])
+        spliced = spliced[~spliced.index.duplicated(keep='last')].sort_index()
+        holding_series[t] = spliced
+        splice_info[t] = {
+            'proxy_used': proxy_ticker, 'note': note,
+            'synthetic_from': str(spliced.index[0].date()),
+            'real_data_from': str(real_start.date()),
+            'participation_rate': participation,
+            'performance_adjustment': 'underperform (80%)' if participation < 1.0 else 'overperform (120%)' if participation > 1.0 else None,
+        }
+
+    # ── Combine into one portfolio index, weighted by TODAY's allocation held static ──
+    common_index = None
+    for t, s in holding_series.items():
+        common_index = s.index if common_index is None else common_index.union(s.index)
+    if common_index is None or len(common_index) < 2:
+        return jsonify({'error': 'Not enough overlapping price history to build a backtest'}), 404
+    common_index = common_index.sort_values()
+
+    portfolio_value = pd.Series(0.0, index=common_index)
+    weight_sum_check = 0.0
+    for h in holdings:
+        t = h['t']
+        if t not in holding_series:
+            continue
+        weight = h['cv'] / total_value
+        weight_sum_check += weight
+        s = holding_series[t].reindex(common_index).ffill().bfill()
+        indexed = s / s.iloc[0] * 100 * weight
+        portfolio_value = portfolio_value.add(indexed, fill_value=0)
+
+    # ── Each benchmark's raw series (not yet indexed — alignment happens next) ──
+    benchmark_raw = {}
+    for key, ticker in benchmark_tickers.items():
+        s = series_for(ticker)
+        if not s.empty:
+            benchmark_raw[key] = s
+
+    # ── Align everything to the LATER of: (a) the user's requested
+    #    start_date, and (b) the latest common start date across all
+    #    selected series (portfolio + every benchmark actually being shown).
+    #    (b) alone is what a prior fix accidentally left this doing — it
+    #    made the requested start_date purely informational and never
+    #    actually trimmed the output, so typing in 2019 had no effect.
+    #    Taking the later of the two means: if everything you selected has
+    #    data by your requested date, you get exactly that date; if not
+    #    (e.g. International/EAFE only goes back to 2001), it correctly
+    #    can't start earlier than what's actually available — same as before
+    #    — but never *ignores* a valid, achievable request the way it just did. ──
+    all_start_dates = [common_index[0]] + [s.index[0] for s in benchmark_raw.values()]
+    latest_common_start = max(all_start_dates)
+    try:
+        requested_start_ts = pd.Timestamp(start_date)
+    except Exception:
+        requested_start_ts = latest_common_start
+    aligned_start = max(latest_common_start, requested_start_ts)
+
+    try:
+        aligned_end = pd.Timestamp(end_date) if end_date else None
+    except Exception:
+        aligned_end = None
+
+    portfolio_aligned = portfolio_value[portfolio_value.index >= aligned_start]
+    if aligned_end is not None:
+        portfolio_aligned = portfolio_aligned[portfolio_aligned.index <= aligned_end]
+    portfolio_dates = [str(d.date()) for d in portfolio_aligned.index]
+    if len(portfolio_aligned) and portfolio_aligned.iloc[0]:
+        portfolio_values = (portfolio_aligned / portfolio_aligned.iloc[0] * 100).round(3).tolist()
+    else:
+        portfolio_values = []
+
+    series_out = {'portfolio': [{'date': d, 'value': v} for d, v in zip(portfolio_dates, portfolio_values)]}
+    drawdowns_out = {'portfolio': compute_drawdowns(portfolio_dates, portfolio_values)}
+
+    for key, s in benchmark_raw.items():
+        s_aligned = s[s.index >= aligned_start]
+        if aligned_end is not None:
+            s_aligned = s_aligned[s_aligned.index <= aligned_end]
+        if s_aligned.empty:
+            series_out[key] = []
+            drawdowns_out[key] = []
+            continue
+        indexed = (s_aligned / s_aligned.iloc[0] * 100).round(3)
+        dates = [str(d.date()) for d in s_aligned.index]
+        vals = indexed.tolist()
+        series_out[key] = [{'date': d, 'value': v} for d, v in zip(dates, vals)]
+        drawdowns_out[key] = compute_drawdowns(dates, vals)
+
+    aligned_start_str = str(aligned_start.date())
+    aligned_end_str = str(portfolio_aligned.index[-1].date()) if len(portfolio_aligned) else None
+
+    return jsonify({
+        'series': series_out,
+        'drawdowns': drawdowns_out,
+        'splice_info': splice_info,
+        'benchmarks_used': {k: BACKTEST_BENCHMARKS[k] for k in benchmark_tickers},
+        'start_date_requested': start_date,
+        'start_date_actual': aligned_start_str,
+        'end_date_actual': aligned_end_str,
+        'methodology_note': (
+            'Portfolio weights are held static at today\'s allocation across the '
+            'entire backtest window. Holdings without real price history reaching '
+            'back to the start date are spliced onto a category-matched long-history '
+            'proxy ETF, rebased to connect seamlessly at the point real data begins — '
+            'this approximates asset-class/style risk, not the specific fund\'s exact '
+            'factor exposure. See splice_info for exactly which holdings used a proxy.'
+        ),
     })
 
 
@@ -7018,6 +7669,10 @@ def etf_lab_chart():
 def etf_lab_page():
     return send_from_directory(BASE_DIR, 'etf-lab.html')
 
+@app.route('/risk-reversal')
+def risk_reversal_page():
+    return send_from_directory(BASE_DIR, 'risk-reversal.html')
+
 
 
 
@@ -7046,6 +7701,7 @@ if __name__ == '__main__':
     print('')
     print('  ================================================')
     print('  ⬡  Entry Point Scanner + Macro Dashboard')
+    print('  BUILD: 2026-07-08-openfigi-env-fix-v11')
     print('  ================================================')
     print('  Entry Scanner : http://localhost:5000')
     print('  Macro Dashboard: http://localhost:5000/macro')

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alpha Scout — ETF Scanner</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -23,6 +29,19 @@
   --teal:#2DD4BF; --teal-dim:rgba(45,212,191,0.1);
   --pink:#F472B6; --pink-dim:rgba(244,114,182,0.1);
   --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED; --bg2:#FFFDF8; --bg3:#F1ECE0; --bg4:#E8E1D2; --bg5:#DED5C2;
+  --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.14);
+  --text:#211E16; --text2:#6B6559; --text3:#8C8676;
+  --green:#178850; --green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B; --red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00; --amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4; --blue-dim:rgba(46,111,196,0.08);
+  --purple:#6C5FC7; --purple-dim:rgba(108,95,199,0.08);
+  --gold:#8A6A1B; --gold-dim:rgba(138,106,27,0.1);
+  --teal:#0F7A5C; --teal-dim:rgba(15,122,92,0.1);
+  --pink:#B23D73; --pink-dim:rgba(178,61,115,0.1);
 }
 
 body { background:var(--bg); color:var(--text); font-size:13px; min-height:100vh; overflow-x:hidden; }
@@ -199,8 +218,33 @@ td { padding:9px 12px; font-size:12px; vertical-align:middle; }
     <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a>
     <a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a>
   </div>
-  <div id="todayDateE" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-right:8px"></div><div style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace" id="lastUp">—</div>
+  <div id="todayDateE" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-right:8px"></div><div style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-right:12px" id="lastUp">—</div>
+  <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+    <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+  </button>
 </div>
+
+<script>
+(function(){
+  function applyThemeUI(theme){
+    var icon = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    if (!icon || !label) return;
+    if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+    else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+  }
+  window.toggleAlphaScoutTheme = function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var next = isLight ? 'dark' : 'light';
+    if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    localStorage.setItem('alphaScoutTheme', next);
+    applyThemeUI(next);
+  };
+  var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+  applyThemeUI(current);
+})();
+</script>
 
 <div class="pgwrap"><div class="pgbar" id="pgbar"></div></div>
 <div class="status loading" id="statusEl"><span class="dot"></span><span id="statusMsg">Initializing ETF Scanner...</span></div>
@@ -2450,7 +2494,7 @@ function buildTreemapModal(containerId, withPrices, cw, ch){
     const x = r.x + G/2, y = r.y + G/2;
     const w = Math.max(0, r.pxW - G), h = Math.max(0, r.pxH - G);
     if(w < 1 || h < 1) return;
-    const bg  = r.is_option ? '#3d3470' : r.is_cash_equiv ? '#8a6d1f' : r.no_ticker ? '#2f5f5f' : tileColor(r.chg);  // options=purple, cash/treasuries=amber, no-ticker foreign holdings=teal, everything else by price change
+    const bg  = r.is_option ? '#3d3470' : r.is_cash_equiv ? '#8a6d1f' : tileColor(r.chg);  // options=purple, cash/treasuries=amber, everything else (including foreign holdings) by price change — grey if no live price data available
     const chg = r.chg !== null ? (r.chg>=0?'+':'')+r.chg.toFixed(2)+'%' : (r.is_option ? '🔗 Option' : '');
     const weightLabel = r.w.toFixed(2)+'% of fund';
     const tip = r.t+' | '+r.n+' | '+r.w.toFixed(2)+'%'+(chg?' | '+chg:'')+(r.is_option?' | Click for contract details':'');

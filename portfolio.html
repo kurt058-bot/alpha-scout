@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>Alpha Scout — Portfolio Analysis</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <style>
 :root{
   --bg:#0a0d14;--bg2:#131720;--bg3:#181d28;--bg4:#1c2230;--bg5:#222837;
@@ -14,6 +20,16 @@
   --blue:#4A90D9;--blue-dim:rgba(74,144,217,0.1);
   --purple:#7F77DD;
   --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED;--bg2:#FFFDF8;--bg3:#F1ECE0;--bg4:#E8E1D2;--bg5:#DED5C2;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#211E16;--text2:#6B6559;--text3:#8C8676;
+  --green:#178850;--green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B;--red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00;--amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4;--blue-dim:rgba(46,111,196,0.08);
+  --purple:#6C5FC7;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden;}
@@ -101,8 +117,33 @@ select.benchmark-select{background:var(--bg4);border:1px solid var(--border2);bo
     <div id="todayDateH" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace"></div>
     <div class="clock" id="clockEl">--:-- --</div>
     <div class="market-status ms-closed" id="marketStatus">CLOSED</div>
+    <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+      <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+    </button>
   </div>
 </div>
+
+<script>
+(function(){
+  function applyThemeUI(theme){
+    var icon = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    if (!icon || !label) return;
+    if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+    else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+  }
+  window.toggleAlphaScoutTheme = function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var next = isLight ? 'dark' : 'light';
+    if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    localStorage.setItem('alphaScoutTheme', next);
+    applyThemeUI(next);
+  };
+  var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+  applyThemeUI(current);
+})();
+</script>
 
 <div class="page">
 
@@ -332,9 +373,24 @@ function renderMetrics(){
     <div class="mc"><div class="mc-label">TTM Return</div><div class="mc-val ${pctClass(r['TTM'])}">${fmtPct(r['TTM'])}</div><div class="mc-sub">Trailing 12 months</div></div>
     <div class="mc"><div class="mc-label">1-Year Return</div><div class="mc-val ${pctClass(r['1Y'])}">${fmtPct(r['1Y'])}</div><div class="mc-sub">Portfolio (weighted)</div></div>
     <div class="mc"><div class="mc-label">3-Year Return</div><div class="mc-val ${pctClass(r['3Y'])}">${fmtPct(r['3Y'])}</div><div class="mc-sub">${r['3Y_Ann']!=null?fmtPct(r['3Y_Ann'])+' ann.':'Cumulative'}</div></div>
+    <div class="mc" style="position:relative">
+      <span style="position:absolute;top:4px;left:4px;width:6px;height:6px;border-radius:50%;background:var(--text3);cursor:help;opacity:0.6" title="IRR (INTERNAL RATE OF RETURN)
+
+WHAT IT IS: The actual annualized return on each holding, accounting for the specific timing and size of every buy, sell, and dividend — pulled from your Snowball transaction history.
+
+WHAT IT TELLS YOU: Unlike a simple % gain, IRR reflects real money-weighted performance — a position you added to at a bad time won't look as good as one bought steadily at low prices, even with the same total return.
+
+HOPE TO SEE: IRR at or above your target rate of return for that position's role in the portfolio.
+
+BE CONCERNED IF: IRR is deeply negative for a large position, or a value shows as extremely large (1000%+) — the latter usually means a tiny cost basis or very short holding period distorting the annualized math, not a real result. Portfolio-level IRR excludes those outliers automatically."></span>
+      <div class="mc-label">Weighted IRR</div><div class="mc-val ${d.weighted_irr!=null?pctClass(d.weighted_irr):''}">${d.weighted_irr!=null?d.weighted_irr.toFixed(2)+'%':'—'}</div><div class="mc-sub">Money-weighted, value-weighted avg</div>
+    </div>
     <div class="mc"><div class="mc-label">Weighted Beta</div><div class="mc-val" style="color:${betaColor(d.weighted_beta)}">${d.weighted_beta!=null?d.weighted_beta.toFixed(2):'—'}</div><div class="mc-sub">S&P 500: 1.00</div></div>
     <div class="mc"><div class="mc-label">Passive Income</div><div class="mc-val" style="color:var(--amber)">${d.weighted_yield!=null?d.weighted_yield.toFixed(2)+'%':'—'}</div><div class="mc-sub">Dividend / distribution yield</div></div>
     <div class="mc"><div class="mc-label">Monthly Distrib.</div><div class="mc-val" style="color:var(--amber)">${fmtMoney(d.monthly_distributions||0)}</div><div class="mc-sub">Paid in ${d.monthly_distributions_month||'prior month'}</div></div>
+    <div class="mc" style="display:flex;flex-direction:column;justify-content:center;align-items:center">
+      <button onclick="window.location.href='/risk-reversal'" style="width:100%;height:100%;min-height:56px;border:1px solid rgba(127,119,221,.4);border-radius:var(--radius);background:var(--purple-dim);color:var(--purple);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px" onmouseover="this.style.background='rgba(127,119,221,.2)'" onmouseout="this.style.background='var(--purple-dim)'">⚡ Risk Reversal</button>
+    </div>
   `;
 }
 
@@ -1067,6 +1123,7 @@ const HOLDINGS_SORT_FIELDS = {
   realized_pl: r => r.realized_pl,
   div_received: r => r.div_received,
   total_profit: r => r.total_profit,
+  irr: r => r.irr,
   accounts: r => ([...new Set(r.accounts||[])].join(', ')).toLowerCase(),
 };
 
@@ -1116,6 +1173,7 @@ function renderHoldingsDetail(){
       <td class="${r.realized_pl!=null?pctClass(r.realized_pl):'neu'}">${r.realized_pl!=null ? (r.realized_pl>=0?'+':'')+fmtMoney(r.realized_pl) : '—'}</td>
       <td>${r.div_received!=null ? fmtMoney(r.div_received) : '—'}</td>
       <td class="${r.total_profit!=null?pctClass(r.total_profit):'neu'}">${r.total_profit!=null ? (r.total_profit>=0?'+':'')+fmtMoney(r.total_profit) : '—'}</td>
+      <td class="${r.irr!=null?pctClass(r.irr):'neu'}">${r.irr!=null ? (r.irr>=0?'+':'')+r.irr.toFixed(2)+'%' : '—'}</td>
       <td style="text-align:left;color:var(--text3);font-size:12px">${[...new Set(r.accounts||[])].join(', ')}</td>
     </tr>
   `).join('');
@@ -1146,6 +1204,7 @@ function renderHoldingsDetail(){
           ${sortableHeader('Realized P/L', 'realized_pl')}
           ${sortableHeader('Div Received', 'div_received')}
           ${sortableHeader('Total Profit', 'total_profit')}
+          ${sortableHeader('IRR', 'irr')}
           ${sortableHeader('Account(s)', 'accounts', 'left')}
         </tr></thead>
         <tbody>${rowsHtml}</tbody>

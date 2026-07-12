@@ -1,6 +1,21 @@
-   .env
-   fmp_cache/
-   edgar_cache/
-   unsplash_cache/
-   __pycache__/
-   *.pyc
+.env
+fmp_cache/
+edgar_cache/
+unsplash_cache/
+dividend_history_cache/
+industry_cache/
+portfolio_data.json
+Portfolio_Positions_*.csv
+Snowball*.csv
+*Snowball*.zip
+*Consolidated-Form-1099*
+*_transaction_download.csv
+__pycache__/
+*.pyc
+custom_etfs.json
+fund_designations.json
+fund_structures.json
+margin_amount.json
+vti_sector_cache.json
+.DS_Store
+Thumbs.db

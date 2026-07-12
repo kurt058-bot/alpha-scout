@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Alpha Scout — Risk Reversal</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
+<style>
+:root{
+  --bg:#0a0d14;--bg2:#131720;--bg3:#181d28;--bg4:#1c2230;--bg5:#222837;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --text:#ffffff;--text2:#c8cdd8;--text3:#8892a4;
+  --green:#1DB87A;--green-dim:rgba(29,184,122,0.1);
+  --red:#E24B4A;--red-dim:rgba(226,75,74,0.1);
+  --amber:#EF9F27;--amber-dim:rgba(239,159,39,0.1);
+  --blue:#4A90D9;--blue-dim:rgba(74,144,217,0.1);
+  --purple:#7F77DD;--purple-dim:rgba(127,119,221,0.1);
+  --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED;--bg2:#FFFDF8;--bg3:#F1ECE0;--bg4:#E8E1D2;--bg5:#DED5C2;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#211E16;--text2:#6B6559;--text3:#8C8676;
+  --green:#178850;--green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B;--red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00;--amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4;--blue-dim:rgba(46,111,196,0.08);
+  --purple:#6C5FC7;--purple-dim:rgba(108,95,199,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden;}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.nav-left{display:flex;align-items:center;gap:8px;}
+.nav-brand{font-family:Georgia,serif;font-size:18px;font-weight:700;letter-spacing:.06em;color:var(--text);margin-right:14px;display:flex;align-items:center;gap:8px;}
+.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;font-weight:500;text-decoration:none;color:var(--text2);background:transparent;cursor:pointer;transition:all .15s;}
+.nav-btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.nav-btn.active{background:var(--blue-dim);color:var(--blue);border-color:rgba(74,144,217,.4);}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.clock{font-family:'Courier New',monospace;font-size:13px;color:var(--text2);}
+.market-status{font-size:10px;font-weight:700;padding:3px 9px;border-radius:12px;letter-spacing:.04em;}
+.ms-closed{background:var(--red-dim);color:var(--red);}
+.ms-open{background:var(--green-dim);color:var(--green);}
+
+.page{max-width:1500px;margin:0 auto;padding:20px 24px 60px;}
+.section-hdr{display:flex;align-items:center;gap:10px;margin:28px 0 14px;}
+.section-title{font-size:15px;font-weight:700;color:var(--text);white-space:nowrap;}
+.section-line{flex:1;height:1px;background:var(--border2);}
+
+.mc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;}
+.mc-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.mc-val{font-size:22px;font-weight:700;color:var(--text);font-family:'Courier New',monospace;}
+.mc-sub{font-size:12px;color:var(--text2);margin-top:3px;}
+.up{color:var(--green);} .dn{color:var(--red);} .neu{color:var(--text3);}
+
+table.data-table{width:100%;border-collapse:collapse;font-size:14px;}
+table.data-table th{text-align:right;padding:10px 12px;color:var(--text2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border2);}
+table.data-table th:first-child{text-align:left;}
+table.data-table td{text-align:right;padding:10px 12px;font-family:'Courier New',monospace;border-bottom:1px solid var(--border);}
+table.data-table td:first-child{text-align:left;font-family:'Aptos Display','Aptos','Segoe UI',sans-serif;font-weight:600;}
+table.data-table tr:hover td{background:var(--bg4);}
+table.data-table tr.portfolio-row td{background:rgba(74,144,217,0.06);font-weight:700;}
+
+.intro-note{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:18px;}
+.intro-note b{color:var(--text);}
+
+.backtest-controls{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:18px;}
+.bench-check{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;user-select:none;}
+.bench-check input{cursor:pointer;}
+.bench-check .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+input[type="date"]{background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:6px 10px;font-size:13px;}
+.btn-primary{padding:8px 20px;background:var(--blue-dim);border:1px solid rgba(74,144,217,.4);border-radius:var(--radius);color:var(--blue);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-primary:hover{background:rgba(74,144,217,.2);}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
+
+#backtestChartArea{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px;min-height:340px;display:flex;align-items:center;justify-content:center;}
+#backtestLegend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;font-size:12px;color:var(--text2);}
+#backtestLegend .legend-item{display:flex;align-items:center;gap:6px;}
+#backtestLegend .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.splice-toggle{font-size:12px;color:var(--blue);cursor:pointer;text-decoration:underline;margin-bottom:10px;display:inline-block;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <div class="nav-left">
+    <div class="nav-brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="13" cy="13" r="11" stroke="#8FAF8F" stroke-width="1.2" opacity="0.5"/>
+          <circle cx="13" cy="13" r="7" stroke="#8FAF8F" stroke-width="1.2" opacity="0.7"/>
+          <circle cx="13" cy="13" r="3" stroke="#8FAF8F" stroke-width="1.2"/>
+          <line x1="13" y1="2" x2="13" y2="24" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="2" y1="13" x2="24" y2="13" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="13" y1="13" x2="20" y2="5" stroke="#C4A46B" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="13" r="1.5" fill="#8FAF8F"/>
+          <circle cx="20" cy="5" r="1.5" fill="#C4A46B" opacity="0.9"/>
+        </svg>
+        <span style="background:linear-gradient(135deg,#E8C99A 0%,#C4A46B 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:19px;letter-spacing:.08em;font-family:Georgia,serif">Alpha Scout</span>
+      </div>
+    <a href="http://localhost:5000/home" class="nav-btn">🏠 Home</a>
+    <a href="http://localhost:5000/macro" class="nav-btn">📊 Macro Dashboard</a>
+    <a href="http://localhost:5000/etf" class="nav-btn">📈 ETF Scanner</a>
+    <a href="http://localhost:5000/etf-lab" class="nav-btn">🧪 ETF Lab</a>
+    <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a>
+    <a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a>
+  </div>
+  <div class="nav-right">
+    <div id="todayDateH" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace"></div><div class="clock" id="clockEl">--:-- --</div>
+    <div class="market-status ms-closed" id="marketStatus">CLOSED</div>
+    <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+      <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+  <div class="section-hdr">
+    <span class="section-title" style="font-size:19px">⚡ Risk Reversal — Portfolio Risk Analysis</span>
+    <div class="section-line"></div>
+    <a href="/portfolio" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border2);border-radius:var(--radius);font-size:12px;font-weight:600;text-decoration:none;color:var(--text2);background:var(--bg3);white-space:nowrap" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text2)'">✕ Close</a>
+  </div>
+
+  <!-- Risk-Adjusted Performance -->
+  <div class="section-hdr"><span class="section-title">🎯 Risk-Adjusted Performance vs Market</span><div class="section-line"></div></div>
+  <div id="riskAdjustedGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px"></div>
+
+  <!-- Risk metrics -->
+  <div class="section-hdr"><span class="section-title">⚠️ Risk Metrics — Volatility & Drawdowns</span><div class="section-line"></div></div>
+  <div id="riskTableWrap" style="overflow-x:auto;margin-bottom:24px"></div>
+
+  <!-- Risk Profile Backtest v1.0 -->
+  <div class="section-hdr"><span class="section-title">🧪 Risk Profile Backtest v.1.0</span><div class="section-line"></div></div>
+
+  <div class="intro-note">
+    <b>How this works:</b> your current portfolio allocation is held static and projected backward, compared against the benchmarks you select. For any holding younger than the backtest start date, its pre-inception history is approximated using a long-history proxy ETF matched to that fund's category (e.g. a small-value fund launched in 2023 borrows Russell 2000 Value's actual 2000–2023 returns to fill the gap), rebased to connect seamlessly where the fund's real data begins. This approximates the fund's <i>asset-class risk profile</i>, not its exact factor tilts — it's the same technique fund providers use for "since inception" comparisons on young funds. Every substitution is disclosed below the results.
+  </div>
+
+  <div class="backtest-controls">
+    <label class="bench-check"><input type="checkbox" id="bench-sp500" checked><span class="swatch" style="background:var(--blue)"></span>S&P 500</label>
+    <label class="bench-check"><input type="checkbox" id="bench-dow30"><span class="swatch" style="background:var(--green)"></span>Dow 30</label>
+    <label class="bench-check"><input type="checkbox" id="bench-nasdaq100"><span class="swatch" style="background:var(--amber)"></span>Nasdaq 100</label>
+    <label class="bench-check"><input type="checkbox" id="bench-intl"><span class="swatch" style="background:var(--red)"></span>International (EAFE)</label>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:12px;color:var(--text2)">Backtest from:</span>
+      <input type="date" id="backtestStartDate" value="2000-01-01" min="2000-01-01">
+      <span style="font-size:12px;color:var(--text2)">to:</span>
+      <input type="date" id="backtestEndDate">
+    </div>
+    <button class="btn-primary" id="runBacktestBtn" onclick="runBacktest()">Run Backtest</button>
+  </div>
+
+  <div id="backtestChartArea"><span class="empty-state" style="padding:0">Select benchmarks and click "Run Backtest" to begin</span></div>
+  <div id="backtestLegend"></div>
+  <div id="backtestDrawdownTables"></div>
+  <div id="spliceInfoPanel" style="margin-top:14px"></div>
+
+</div>
+
+<script>
+const API = 'http://localhost:5000';
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clockEl').textContent = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:true});
+  document.getElementById('todayDateH').textContent = now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'});
+  const day = now.getDay(), mins = now.getHours()*60+now.getMinutes();
+  const open = day>=1 && day<=5 && mins>=570 && mins<960;
+  const el = document.getElementById('marketStatus');
+  el.textContent = open?'OPEN':'CLOSED';
+  el.className = 'market-status ' + (open?'ms-open':'ms-closed');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── Theme toggle (shared preference with Home page via localStorage) ──
+(function(){
+  function applyThemeUI(theme){
+    var icon = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    if (!icon || !label) return;
+    if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+    else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+  }
+  window.toggleAlphaScoutTheme = function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var next = isLight ? 'dark' : 'light';
+    if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    localStorage.setItem('alphaScoutTheme', next);
+    applyThemeUI(next);
+  };
+  var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+  applyThemeUI(current);
+})();
+
+let analysisData = null;
+
+function fmtDateUS(isoDate){
+  // Converts 'YYYY-MM-DD' -> 'MM-DD-YYYY'. Passes through anything else unchanged.
+  if(!isoDate || typeof isoDate !== 'string') return isoDate;
+  const parts = isoDate.split('-');
+  if(parts.length !== 3) return isoDate;
+  const [y, m, d] = parts;
+  return m + '-' + d + '-' + y;
+}
+
+function pctClass(v){
+  if(v===null||v===undefined) return 'neu';
+  return v>=0?'up':'dn';
+}
+
+// ═══ Section 1 & 2: Risk-Adjusted Performance + Risk Metrics (reused from Portfolio Analysis) ═══
+function renderRiskTable(){
+  const d = analysisData;
+  const rows = [
+    {key:'portfolio', label:'Your Portfolio', cls:'portfolio-row'},
+    {key:'SPY', label:'S&P 500 (SPY)', cls:''},
+    {key:'QQQ', label:'Nasdaq 100 (QQQ)', cls:''},
+    {key:'DIA', label:'Dow 30 (DIA)', cls:''},
+  ];
+  let html = '<table class="data-table"><thead><tr><th>Benchmark</th><th>Max DD 1Y</th><th>Max DD 3Y</th><th>Max DD 5Y</th><th>Std Dev 1Y</th><th>Std Dev 3Y</th><th>Std Dev 5Y</th></tr></thead><tbody>';
+  rows.forEach(row => {
+    const r = d.risk[row.key] || {};
+    html += '<tr class="'+row.cls+'"><td>'+row.label+'</td>'
+      + '<td class="dn">'+(r.max_dd_1y!=null?r.max_dd_1y.toFixed(1)+'%':'—')+'</td>'
+      + '<td class="dn">'+(r.max_dd_3y!=null?r.max_dd_3y.toFixed(1)+'%':'—')+'</td>'
+      + '<td class="dn">'+(r.max_dd_5y!=null?r.max_dd_5y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_1y!=null?r.std_1y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_3y!=null?r.std_3y.toFixed(1)+'%':'—')+'</td>'
+      + '<td>'+(r.std_5y!=null?r.std_5y.toFixed(1)+'%':'—')+'</td>'
+      + '</tr>';
+  });
+  html += '</tbody></table>';
+  document.getElementById('riskTableWrap').innerHTML = html;
+}
+
+function signalCard(label, val, displayVal, sub, signal, definition){
+  const colors = {
+    green:  {c:'var(--green)', bg:'rgba(29,184,122,0.08)',  border:'rgba(29,184,122,0.35)'},
+    amber:  {c:'var(--amber)', bg:'rgba(239,159,39,0.08)',  border:'rgba(239,159,39,0.35)'},
+    red:    {c:'var(--red)',   bg:'rgba(226,75,74,0.08)',   border:'rgba(226,75,74,0.35)'},
+    neutral:{c:'var(--text3)', bg:'var(--bg4)',             border:'var(--border)'},
+  };
+  const s = colors[signal] || colors.neutral;
+  return `<div class="mc" style="border-top:3px solid ${s.c};background:${s.bg}">
+    <div class="mc-label">${label}</div>
+    <div class="mc-val" style="color:${s.c};font-size:20px">${displayVal}</div>
+    <div class="mc-sub">${sub}</div>
+    ${definition ? '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);line-height:1.4">'+definition+'</div>' : ''}
+  </div>`;
+}
+
+function renderRiskAdjusted(){
+  const d = analysisData;
+  const ra = d.risk_adjusted || {};
+  const grid = document.getElementById('riskAdjustedGrid');
+  if(!grid) return;
+
+  function magnitudeNote(diff, unit, goodWhenHigher=true){
+    const absDiff = Math.abs(diff);
+    const dir = (diff > 0) === goodWhenHigher ? 'better' : 'worse';
+    let mag;
+    if(unit === 'ratio'){
+      mag = absDiff > 0.5 ? 'significantly' : absDiff > 0.15 ? 'slightly' : null;
+    } else {
+      mag = absDiff > 5 ? 'significantly' : absDiff > 1.5 ? 'slightly' : null;
+    }
+    if(mag === null) return 'The portfolio performed about the same as the market on this measure.';
+    return 'The portfolio scored '+mag+' '+dir+' on this measure than the S&P 500.';
+  }
+
+  let html = '';
+
+  if(ra.portfolio_pe != null && ra.spy_pe != null){
+    const pe = ra.portfolio_pe;
+    const sig = pe <= 25 ? 'green' : pe <= 33 ? 'amber' : 'red';
+    let note;
+    if(pe > 33) note = 'This is a richly valued portfolio — paying a significant premium for earnings.';
+    else if(pe > 25) note = 'This is a moderately rich valuation — paying up somewhat for earnings.';
+    else note = 'This is a reasonable valuation range relative to earnings.';
+    html += signalCard('Portfolio P/E', ra.portfolio_pe, ra.portfolio_pe.toFixed(1)+'x', 'S&P 500: '+ra.spy_pe.toFixed(1)+'x · '+note, sig, 'This measures how expensive your holdings are relative to their earnings — a way to gauge whether you\'re paying a premium for growth or getting in at a reasonable price.');
+  } else {
+    html += signalCard('Portfolio P/E', null, '—', 'Insufficient equity holdings with P/E data', 'neutral', 'This measures how expensive your holdings are relative to their earnings — a way to gauge whether you\'re paying a premium for growth or getting in at a reasonable price.');
+  }
+
+  if(ra.twr_1y != null && ra.spy_twr_1y != null){
+    const diff = ra.twr_1y - ra.spy_twr_1y;
+    const sig = diff > 2 ? 'green' : diff < -2 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'percent', true);
+    html += signalCard('Portfolio TWR (1Y)', ra.twr_1y, (ra.twr_1y>=0?'+':'')+ra.twr_1y.toFixed(1)+'%', 'S&P 500: '+(ra.spy_twr_1y>=0?'+':'')+ra.spy_twr_1y.toFixed(1)+'% · '+note, sig, 'This measures your actual investment return over the past year, independent of when you added or withdrew cash — the cleanest read on how your holdings themselves performed.');
+  } else {
+    html += signalCard('Portfolio TWR (1Y)', null, '—', 'Time-weighted return unavailable', 'neutral', 'This measures your actual investment return over the past year, independent of when you added or withdrew cash — the cleanest read on how your holdings themselves performed.');
+  }
+
+  if(ra.sortino_1y != null && ra.spy_sortino_1y != null){
+    const diff = ra.sortino_1y - ra.spy_sortino_1y;
+    const sig = diff > 0.15 ? 'green' : diff < -0.15 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'ratio', true);
+    html += signalCard('Sortino Ratio', ra.sortino_1y, ra.sortino_1y.toFixed(2), 'S&P 500: '+ra.spy_sortino_1y.toFixed(2)+' · '+note, sig, 'This measures how much return you\'re getting for every unit of downside risk you take on — it only penalizes the bad days, not the good ones, so it\'s a good read on how well-compensated you are for the risk of losses specifically.');
+  } else {
+    html += signalCard('Sortino Ratio', null, '—', 'Insufficient downside data', 'neutral', 'This measures how much return you\'re getting for every unit of downside risk you take on — it only penalizes the bad days, not the good ones, so it\'s a good read on how well-compensated you are for the risk of losses specifically.');
+  }
+
+  if(ra.sharpe_1y != null && ra.spy_sharpe_1y != null){
+    const diff = ra.sharpe_1y - ra.spy_sharpe_1y;
+    const sig = diff > 0.15 ? 'green' : diff < -0.15 ? 'red' : 'amber';
+    const note = magnitudeNote(diff, 'ratio', true);
+    html += signalCard('Sharpe Ratio', ra.sharpe_1y, ra.sharpe_1y.toFixed(2), 'S&P 500: '+ra.spy_sharpe_1y.toFixed(2)+' · '+note, sig, 'This measures how much return you\'re getting for every unit of total volatility — including both ups and downs — so it tells you whether you\'re being fairly rewarded for how bumpy the ride is.');
+  } else {
+    html += signalCard('Sharpe Ratio', null, '—', 'Insufficient return data', 'neutral', 'This measures how much return you\'re getting for every unit of total volatility — including both ups and downs — so it tells you whether you\'re being fairly rewarded for how bumpy the ride is.');
+  }
+
+  if(ra.beta_vs_spy != null){
+    const b = ra.beta_vs_spy;
+    const sig = b < 0.95 ? 'green' : b <= 1.19 ? 'amber' : 'red';
+    let note;
+    if(b > 1.2) note = 'The portfolio moves significantly more than the market in both directions.';
+    else if(b > 1.0) note = 'The portfolio moves slightly more than the market.';
+    else if(b < 0.8) note = 'The portfolio is defensive — it moves less than the market.';
+    else note = 'The portfolio moves roughly in line with the market.';
+    html += signalCard('Beta (Volatility)', b, b.toFixed(2), 'S&P 500: 1.00 · '+note, sig, 'This measures how much your portfolio tends to swing relative to the overall market — helpful for understanding what kind of moves to expect when the market has a big up or down day.');
+  } else {
+    html += signalCard('Beta (Volatility)', null, '—', 'Insufficient correlation data', 'neutral', 'This measures how much your portfolio tends to swing relative to the overall market — helpful for understanding what kind of moves to expect when the market has a big up or down day.');
+  }
+
+  grid.innerHTML = html;
+}
+
+async function loadAnalysis(){
+  try {
+    const res = await fetch(API + '/api/portfolio/analysis');
+    if(!res.ok){
+      document.getElementById('riskAdjustedGrid').innerHTML = '<div class="empty-state" style="grid-column:1/-1">No portfolio uploaded yet — upload one on the Portfolio Analysis page first.</div>';
+      return;
+    }
+    analysisData = await res.json();
+    renderRiskAdjusted();
+    renderRiskTable();
+  } catch(e){
+    console.error('Failed to load portfolio analysis:', e);
+  }
+}
+loadAnalysis();
+
+// ═══ Section 3: Risk Profile Backtest v1.0 ═══
+const BENCH_COLORS = {
+  portfolio: 'var(--purple)',
+  sp500: 'var(--blue)',
+  dow30: 'var(--green)',
+  nasdaq100: 'var(--amber)',
+  intl: 'var(--red)',
+};
+const BENCH_LABELS = {
+  portfolio: 'Your Portfolio',
+  sp500: 'S&P 500',
+  dow30: 'Dow 30',
+  nasdaq100: 'Nasdaq 100',
+  intl: 'International (EAFE)',
+};
+
+async function runBacktest(){
+  const btn = document.getElementById('runBacktestBtn');
+  const chartArea = document.getElementById('backtestChartArea');
+  btn.disabled = true;
+  chartArea.innerHTML = '<span class="spinner"></span>&nbsp; <span style="color:var(--text2);font-size:13px">Running backtest — this can take 20-40s while price history downloads...</span>';
+  document.getElementById('backtestLegend').innerHTML = '';
+  document.getElementById('backtestDrawdownTables').innerHTML = '';
+  document.getElementById('spliceInfoPanel').innerHTML = '';
+
+  const benchmarks = [];
+  if(document.getElementById('bench-sp500').checked) benchmarks.push('sp500');
+  if(document.getElementById('bench-dow30').checked) benchmarks.push('dow30');
+  if(document.getElementById('bench-nasdaq100').checked) benchmarks.push('nasdaq100');
+  if(document.getElementById('bench-intl').checked) benchmarks.push('intl');
+  const startDate = document.getElementById('backtestStartDate').value || '2000-01-01';
+  const endDate = document.getElementById('backtestEndDate').value || null;
+
+  try {
+    const res = await fetch(API + '/api/portfolio/backtest', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({start_date: startDate, end_date: endDate, benchmarks: benchmarks})
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if(!contentType.includes('application/json')){
+      // The server sent back HTML (a 404 page, a Flask error page, etc.)
+      // instead of JSON — almost always means macro_server.py hasn't been
+      // restarted since this route was added, or a route path is wrong.
+      chartArea.innerHTML = '<span class="empty-state" style="padding:0;color:var(--red)">'
+        + 'Server returned '+res.status+' '+res.statusText+' instead of JSON. '
+        + 'This usually means macro_server.py needs to be restarted to pick up '
+        + 'the new /api/portfolio/backtest route — stop the server (Ctrl+C) and run '
+        + '<code>python macro_server.py</code> again, then retry.</span>';
+      btn.disabled = false;
+      return;
+    }
+
+    const data = await res.json();
+    if(!res.ok){
+      let msg = data.error || 'Backtest failed';
+      if(data.traceback){
+        msg += '<pre style="text-align:left;font-size:11px;color:var(--text3);margin-top:10px;white-space:pre-wrap;max-height:200px;overflow-y:auto">'+data.traceback+'</pre>';
+      }
+      chartArea.innerHTML = '<span class="empty-state" style="padding:0;color:var(--red)">'+msg+'</span>';
+      btn.disabled = false;
+      return;
+    }
+    renderBacktestChart(data.series);
+    renderDrawdownTables(data.drawdowns, data.series);
+    renderSpliceInfo(data.splice_info, data.methodology_note, data.start_date_actual, data.start_date_requested, data.end_date_actual, endDate);
+  } catch(e){
+    chartArea.innerHTML = '<span class="empty-state" style="padding:0;color:var(--red)">Request failed: '+e.message+'</span>';
+  }
+  btn.disabled = false;
+}
+
+function renderBacktestChart(seriesMap){
+  const area = document.getElementById('backtestChartArea');
+  const legend = document.getElementById('backtestLegend');
+  const activeKeys = Object.keys(seriesMap).filter(k => seriesMap[k] && seriesMap[k].length > 1);
+
+  if(!activeKeys.length){
+    area.innerHTML = '<span class="empty-state" style="padding:0">No overlapping price history available for the selected combination</span>';
+    legend.innerHTML = '';
+    return;
+  }
+
+  const W = 1200, H = 380, padL = 50, padR = 16, padT = 16, padB = 28;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+
+  let allVals = [];
+  activeKeys.forEach(k => seriesMap[k].forEach(p => allVals.push(p.value)));
+  let minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const pad = (maxV - minV) * 0.06 || 1;
+  minV -= pad; maxV += pad;
+
+  const maxLen = Math.max(...activeKeys.map(k => seriesMap[k].length));
+  const xFor = (i, len) => padL + (i/(len-1)) * plotW;
+  const yFor = v => padT + plotH - ((v - minV)/(maxV - minV)) * plotH;
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:400px">`;
+
+  // Gridlines
+  for(let i=0;i<=4;i++){
+    const v = minV + (maxV-minV)*i/4;
+    const y = yFor(v);
+    svg += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+    svg += `<text x="${padL-6}" y="${y+4}" text-anchor="end" font-size="10" fill="var(--text3)">${v.toFixed(0)}</text>`;
+  }
+
+  activeKeys.forEach(key => {
+    const pts = seriesMap[key];
+    const color = BENCH_COLORS[key] || 'var(--text3)';
+    let path = '';
+    pts.forEach((p, i) => {
+      const x = xFor(i, pts.length);
+      const y = yFor(p.value);
+      path += (i===0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1) + ' ';
+    });
+    const strokeWidth = key === 'portfolio' ? 2.5 : 1.5;
+    svg += `<path d="${path}" fill="none" stroke="${color}" stroke-width="${strokeWidth}"/>`;
+  });
+
+  // X-axis date range — evenly spaced labels across the full width, not just the two endpoints
+  const firstKey = activeKeys[0];
+  const axisPts = seriesMap[firstKey];
+  const numLabels = Math.min(6, axisPts.length);
+  svg += `<line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--border2)" stroke-width="1"/>`;
+  for(let i=0; i<numLabels; i++){
+    const idx = Math.round(i * (axisPts.length-1) / (numLabels-1));
+    const x = xFor(idx, axisPts.length);
+    const anchor = i===0 ? 'start' : i===numLabels-1 ? 'end' : 'middle';
+    svg += `<line x1="${x}" y1="${H-padB}" x2="${x}" y2="${H-padB+4}" stroke="var(--border2)" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${H-8}" text-anchor="${anchor}" font-size="11" fill="var(--text3)">${fmtDateUS(axisPts[idx].date)}</text>`;
+  }
+
+  svg += '</svg>';
+  area.innerHTML = svg;
+
+  legend.innerHTML = activeKeys.map(key =>
+    `<span class="legend-item"><span class="swatch" style="background:${BENCH_COLORS[key]}"></span>${BENCH_LABELS[key]}</span>`
+  ).join('');
+}
+
+function renderDrawdownTables(drawdownsMap, seriesMap){
+  const container = document.getElementById('backtestDrawdownTables');
+  const activeKeys = Object.keys(seriesMap).filter(k => seriesMap[k] && seriesMap[k].length > 1);
+  let html = '';
+
+  activeKeys.forEach(key => {
+    const episodes = drawdownsMap[key] || [];
+    html += `<div class="section-hdr" style="margin-top:20px"><span class="section-title" style="font-size:13px;color:${BENCH_COLORS[key]}">${BENCH_LABELS[key]} — Top Drawdowns</span><div class="section-line"></div></div>`;
+    if(!episodes.length){
+      html += '<div class="empty-state" style="padding:14px 0">No drawdown episodes found</div>';
+      return;
+    }
+    html += '<table class="data-table"><thead><tr><th style="text-align:left">Peak Date</th><th style="text-align:left">Trough Date</th><th>Drawdown</th><th style="text-align:left">Recovery Date</th><th>Days to Recover</th></tr></thead><tbody>';
+    episodes.forEach(ep => {
+      html += '<tr><td style="text-align:left">'+fmtDateUS(ep.peak_date)+'</td>'
+        + '<td style="text-align:left">'+fmtDateUS(ep.trough_date)+'</td>'
+        + '<td class="dn">'+ep.drawdown_pct.toFixed(1)+'%</td>'
+        + '<td style="text-align:left">'+(ep.recovery_date ? fmtDateUS(ep.recovery_date) : 'Not yet recovered')+'</td>'
+        + '<td>'+(ep.days_to_recover!=null ? ep.days_to_recover.toLocaleString() : '—')+'</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+  });
+
+  container.innerHTML = html;
+}
+
+function renderSpliceInfo(spliceInfo, methodologyNote, actualStart, requestedStart, actualEnd, requestedEnd){
+  const panel = document.getElementById('spliceInfoPanel');
+  let dateNote = '';
+  if(actualStart && requestedStart && actualStart !== requestedStart){
+    dateNote = `<div class="intro-note" style="border-color:var(--amber);background:var(--amber-dim)"><b>Note:</b> you requested a backtest starting ${fmtDateUS(requestedStart)}, but the comparison actually begins <b>${fmtDateUS(actualStart)}</b> — the latest date at which every selected benchmark and your portfolio all had real price data available (e.g. International/EAFE data doesn't start until 8/2001).</div>`;
+  }
+  if(actualEnd){
+    dateNote += `<div class="intro-note">Showing <b>${fmtDateUS(actualStart)}</b> through <b>${fmtDateUS(actualEnd)}</b>.</div>`;
+  }
+
+  const proxied = Object.entries(spliceInfo || {}).filter(([t, info]) => info.proxy_used);
+  const realOnly = Object.entries(spliceInfo || {}).filter(([t, info]) => !info.proxy_used);
+
+  let html = dateNote;
+  html += `<div class="intro-note">${methodologyNote}</div>`;
+  html += '<span class="splice-toggle" onclick="document.getElementById(\'spliceDetailTable\').style.display = document.getElementById(\'spliceDetailTable\').style.display===\'none\'?\'block\':\'none\'">Show which holdings used a proxy →</span>';
+  html += '<div id="spliceDetailTable" style="display:none;margin-top:10px">';
+  html += '<table class="data-table"><thead><tr><th style="text-align:left">Ticker</th><th style="text-align:left">Proxy Used</th><th style="text-align:left">Adjustment</th><th style="text-align:left">Real Data From</th><th style="text-align:left">Note</th></tr></thead><tbody>';
+  proxied.forEach(([t, info]) => {
+    const adj = info.performance_adjustment
+      ? `<span style="color:${info.participation_rate<1?'var(--red)':'var(--green)'}">${info.performance_adjustment}</span>`
+      : '<span style="color:var(--text3)">None</span>';
+    html += `<tr><td style="text-align:left">${t}</td><td style="text-align:left;color:var(--amber)">${info.proxy_used}</td><td style="text-align:left">${adj}</td><td style="text-align:left">${info.real_data_from?fmtDateUS(info.real_data_from):'—'}</td><td style="text-align:left;font-size:12px;color:var(--text3)">${info.note||''}</td></tr>`;
+  });
+  realOnly.forEach(([t, info]) => {
+    html += `<tr><td style="text-align:left">${t}</td><td style="text-align:left;color:var(--text3)">None (real data only)</td><td style="text-align:left;color:var(--text3)">—</td><td style="text-align:left">${info.real_data_from?fmtDateUS(info.real_data_from):'—'}</td><td style="text-align:left;font-size:12px;color:var(--text3)">${info.note||''}</td></tr>`;
+  });
+  html += '</tbody></table></div>';
+
+  panel.innerHTML = html;
+}
+</script>
+</body>
+</html>

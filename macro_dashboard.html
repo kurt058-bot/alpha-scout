@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Macro Health Dashboard</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -18,6 +24,17 @@
   --purple:#7F77DD;--purple-dim:rgba(127,119,221,0.12);
   --teal:#1D9E75;--teal-dim:rgba(29,158,117,0.12);
   --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED;--bg2:#FFFDF8;--bg3:#F1ECE0;--bg4:#E8E1D2;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#211E16;--text2:#6B6559;--text3:#8C8676;
+  --green:#178850;--green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B;--red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00;--amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4;--blue-dim:rgba(46,111,196,0.08);
+  --purple:#6C5FC7;--purple-dim:rgba(108,95,199,0.08);
+  --teal:#0F7A5C;--teal-dim:rgba(15,122,92,0.1);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Nunito Sans','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;}
@@ -110,29 +127,71 @@ body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos',
 
 /* No-data state */
 .no-data{font-size:12px;color:var(--text3);font-style:italic;padding:8px 0;}
-.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;color:rgba(255,255,255,0.5);background:transparent;cursor:pointer;transition:all .15s;}
-  .nav-btn:hover{background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.9);}
-  .nav-btn.active{background:rgba(74,144,217,0.15);color:#4A90D9;border-color:rgba(74,144,217,.4);}
+.nav-btn{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:500;text-decoration:none;color:var(--text2);background:transparent;cursor:pointer;transition:all .15s;}
+  .nav-btn:hover{background:var(--bg3);color:var(--text);}
+  .nav-btn.active{background:var(--blue-dim);color:var(--blue);border-color:rgba(74,144,217,.4);}
+.navbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;margin:-20px -24px 18px;}
+.nav-left{display:flex;align-items:center;gap:6px;}
+.nav-brand{font-family:Georgia,serif;font-size:18px;font-weight:700;letter-spacing:.06em;color:var(--text);margin-right:14px;display:flex;align-items:center;gap:8px;}
   </style>
 </head>
 <body>
 <div class="page">
 
-  <!-- Nav Toggle -->
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-    <div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:4px;">
+  <!-- Nav -->
+  <div class="navbar">
+    <div class="nav-left">
+      <div class="nav-brand">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+          <circle cx="13" cy="13" r="11" stroke="#8FAF8F" stroke-width="1.2" opacity="0.5"/>
+          <circle cx="13" cy="13" r="7" stroke="#8FAF8F" stroke-width="1.2" opacity="0.7"/>
+          <circle cx="13" cy="13" r="3" stroke="#8FAF8F" stroke-width="1.2"/>
+          <line x1="13" y1="2" x2="13" y2="24" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="2" y1="13" x2="24" y2="13" stroke="#8FAF8F" stroke-width="0.8" opacity="0.4"/>
+          <line x1="13" y1="13" x2="20" y2="5" stroke="#C4A46B" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="13" cy="13" r="1.5" fill="#8FAF8F"/>
+          <circle cx="20" cy="5" r="1.5" fill="#C4A46B" opacity="0.9"/>
+        </svg>
+        <span style="background:linear-gradient(135deg,#E8C99A 0%,#C4A46B 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:19px;letter-spacing:.08em;font-family:Georgia,serif">Alpha Scout</span>
+      </div>
       <a href="http://localhost:5000/home" class="nav-btn">🏠 Home</a>
       <a href="http://localhost:5000/macro" class="nav-btn active">📊 Macro Dashboard</a>
       <a href="http://localhost:5000/etf" class="nav-btn">📈 ETF Scanner</a>
       <a href="http://localhost:5000/etf-lab" class="nav-btn">🧪 ETF Lab</a>
-      <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a><a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a></div>
+      <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a>
+      <a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <div id="todayDate" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace;margin-right:6px"></div>
       <div class="sub" id="lastUp" style="margin-top:0">Initializing...</div>
       <button class="btn btn-primary" onclick="loadAll()">↻ Refresh</button>
+      <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+        <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+      </button>
     </div>
   </div>
+
+  <script>
+  (function(){
+    function applyThemeUI(theme){
+      var icon = document.getElementById('themeToggleIcon');
+      var label = document.getElementById('themeToggleLabel');
+      if (!icon || !label) return;
+      if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+      else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+    }
+    window.toggleAlphaScoutTheme = function(){
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      var next = isLight ? 'dark' : 'light';
+      if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+      else { document.documentElement.removeAttribute('data-theme'); }
+      localStorage.setItem('alphaScoutTheme', next);
+      applyThemeUI(next);
+    };
+    var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+    applyThemeUI(current);
+  })();
+  </script>
   <div style="margin-bottom:16px;">
     <h1 style="font-size:17px;font-weight:600;letter-spacing:.04em;">📊 Macro Health Dashboard</h1>
   </div>

@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Alpha Scout</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -24,6 +30,17 @@
   --purple:#7F77DD;--purple-dim:rgba(127,119,221,0.1);
   --gold:#F5C842;--gold-dim:rgba(245,200,66,0.1);
   --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED;--bg2:#FFFDF8;--bg3:#F1ECE0;--bg4:#E8E1D2;--bg5:#DED5C2;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#211E16;--text2:#6B6559;--text3:#8C8676;
+  --green:#178850;--green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B;--red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00;--amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4;--blue-dim:rgba(46,111,196,0.08);
+  --purple:#6C5FC7;--purple-dim:rgba(108,95,199,0.08);
+  --gold:#8A6A1B;--gold-dim:rgba(138,106,27,0.1);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden;}
@@ -174,8 +191,33 @@ body{background:var(--bg);color:var(--text);font-family:'Aptos Display','Aptos',
     <div id="todayDateH" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace"></div><div class="clock" id="clockEl">--:-- --</div>
     <div class="market-status ms-closed" id="marketStatus">CLOSED</div>
     <button class="btn-refresh" onclick="loadAll()">↻ Refresh All</button>
+    <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+      <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+    </button>
   </div>
 </div>
+
+<script>
+(function(){
+  function applyThemeUI(theme){
+    var icon = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    if (!icon || !label) return;
+    if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+    else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+  }
+  window.toggleAlphaScoutTheme = function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var next = isLight ? 'dark' : 'light';
+    if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    localStorage.setItem('alphaScoutTheme', next);
+    applyThemeUI(next);
+  };
+  var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+  applyThemeUI(current);
+})();
+</script>
 
 <!-- Main Grid -->
 <div class="main">

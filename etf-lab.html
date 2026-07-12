@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ETF Lab — Alpha Scout</title>
+<script>
+(function(){
+  var t = localStorage.getItem('alphaScoutTheme');
+  if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <style>
 * { font-family:'Aptos Display','Aptos','Segoe UI',system-ui,sans-serif!important; box-sizing:border-box; margin:0; padding:0; }
 :root {
@@ -16,6 +22,16 @@
   --blue:#4A90D9; --blue-dim:rgba(74,144,217,0.1);
   --purple:#9B72D0; --teal:#2EC4B6;
   --radius:6px;
+}
+[data-theme="light"] {
+  --bg:#FAF6ED; --bg2:#FFFDF8; --bg3:#F1ECE0; --bg4:#E8E1D2; --bg5:#DED5C2;
+  --border:rgba(0,0,0,0.08); --border2:rgba(0,0,0,0.14);
+  --text:#211E16; --text2:#6B6559; --text3:#8C8676;
+  --green:#178850; --green-dim:rgba(23,136,80,0.1);
+  --red:#C22B2B; --red-dim:rgba(194,43,43,0.08);
+  --amber:#B36B00; --amber-dim:rgba(179,107,0,0.1);
+  --blue:#2E6FC4; --blue-dim:rgba(46,111,196,0.08);
+  --purple:#7A5FB8; --teal:#0F7A5C;
 }
 body { background:var(--bg); color:var(--text); font-size:13px; min-height:100vh; }
 a { color:var(--blue); text-decoration:none; }
@@ -155,7 +171,7 @@ a:hover { text-decoration:underline; }
 
 <nav class="navbar">
   <div style="display:flex;align-items:center;gap:16px">
-    <a href="/home" style="text-decoration:none;display:flex;align-items:center;gap:8px">
+    <a href="http://localhost:5000/home" style="text-decoration:none;display:flex;align-items:center;gap:8px">
       <svg width="28" height="28" viewBox="0 0 26 26" fill="none">
         <circle cx="13" cy="13" r="11" stroke="#8FAF8F" stroke-width="1.2" opacity="0.5"/>
         <circle cx="13" cy="13" r="7" stroke="#8FAF8F" stroke-width="1.2" opacity="0.7"/>
@@ -169,14 +185,45 @@ a:hover { text-decoration:underline; }
       <span style="background:linear-gradient(135deg,#E8C99A,#C4A46B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-size:20px;font-weight:700;font-family:'Aptos Display',sans-serif!important">Alpha Scout</span>
     </a>
     <div style="display:flex;gap:6px">
-      <a href="/home" class="nav-btn">🏠 Home</a>
-      <a href="/etf" class="nav-btn">📊 ETF Scanner</a>
-      <a href="/etf-lab" class="nav-btn active">🧪 ETF Lab</a>
-      <a href="/portfolio" class="nav-btn">💼 Portfolio</a>
-      <a href="/macro" class="nav-btn">📈 Macro</a>
+      <a href="http://localhost:5000/home" class="nav-btn">🏠 Home</a>
+      <a href="http://localhost:5000/macro" class="nav-btn">📊 Macro Dashboard</a>
+      <a href="http://localhost:5000/etf" class="nav-btn">📈 ETF Scanner</a>
+      <a href="http://localhost:5000/etf-lab" class="nav-btn active">🧪 ETF Lab</a>
+      <a href="http://localhost:5000" class="nav-btn">📡 Equity Scanner</a>
+      <a href="http://localhost:5000/portfolio" class="nav-btn">📁 Portfolio Analysis</a>
     </div>
   </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div id="todayDateL" style="font-size:11px;color:var(--text3);font-family:'Courier New',monospace"></div>
+    <button id="themeToggle" onclick="toggleAlphaScoutTheme()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--bg3);color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;transition:all .15s" title="Toggle light/dark theme">
+      <span id="themeToggleIcon">🌙</span><span id="themeToggleLabel">Dark</span>
+    </button>
+  </div>
 </nav>
+
+<script>
+(function(){
+  function applyThemeUI(theme){
+    var icon = document.getElementById('themeToggleIcon');
+    var label = document.getElementById('themeToggleLabel');
+    if (!icon || !label) return;
+    if (theme === 'light') { icon.textContent = '☀️'; label.textContent = 'Light'; }
+    else { icon.textContent = '🌙'; label.textContent = 'Dark'; }
+  }
+  window.toggleAlphaScoutTheme = function(){
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var next = isLight ? 'dark' : 'light';
+    if (next === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+    else { document.documentElement.removeAttribute('data-theme'); }
+    localStorage.setItem('alphaScoutTheme', next);
+    applyThemeUI(next);
+  };
+  var current = localStorage.getItem('alphaScoutTheme') === 'light' ? 'light' : 'dark';
+  applyThemeUI(current);
+  var d = document.getElementById('todayDateL');
+  if (d) { d.textContent = new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
+})();
+</script>
 
 <div class="lab-search-wrap">
   <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px">
